@@ -80,22 +80,24 @@ class DQN:
 	def __init__(self):
 		print "Initializing DQN..."
 		self.exploration_rate = config.rl_initial_exploration
+		self.fcl_eliminated = True if len(config.q_fc_hidden_units) == 0 else False
 
 		# Q Network
 		conv, fc = build_q_network(config)
 		self.conv = conv
-		self.fc = fc
-		self.fcl_eliminated = True if len(config.q_fc_hidden_units) == 0 else False
+		if self.fcl_eliminated is False:
+			self.fc = fc
 		self.update_target()
 
 		# Optimizer
 		## RMSProp, ADAM, AdaGrad, AdaDelta, ...
 		## See http://docs.chainer.org/en/stable/reference/optimizers.html
 		self.optimizer_conv = optimizers.Adam(alpha=config.rl_learning_rate, beta1=config.rl_gradient_momentum)
-		self.optimizer_fc = optimizers.Adam(alpha=config.rl_learning_rate, beta1=config.rl_gradient_momentum)
+		if self.fcl_eliminated is False:
+			self.optimizer_fc = optimizers.Adam(alpha=config.rl_learning_rate, beta1=config.rl_gradient_momentum)
 
 		# Replay Memory
-		## (state, action, reward, next_state, episode_ends_or_not)
+		## (state, action, reward, next_state, episode_ends)
 		shape_state = (config.rl_replay_memory_size, config.rl_agent_history_length, config.ale_screen_channels, config.ale_scaled_screen_size[0], config.ale_scaled_screen_size[1])
 		shape_action = (config.rl_replay_memory_size,)
 		self.replay_memory = [
@@ -106,16 +108,16 @@ class DQN:
 			np.zeros(shape_action, dtype=np.bool),
 		]
 
-	def e_greedy(self, state):
+	def e_greedy(self, state, exploration_rate):
 		state = Variable(state)
 		if config.use_gpu:
 			state.to_gpu()
-		q = self.compute_q_value(state)
+		q = self.compute_q_value_variable(state)
 		if config.use_gpu:
 			q.to_cpu()
 		q = q.data
 		prop = np.random.uniform()
-		if prop < config.exploration_rate:
+		if prop < exploration_rate:
 			# Select a random action
 			action_index = np.random.randint(0, len(config.ale_actions))
 		else:
@@ -124,11 +126,56 @@ class DQN:
 
 		return self.get_action_with_index(action_index), q
 
-	def store_transition_in_replay_memory(self, time_step, state, action, reward, new_state, episode_ends_or_not):
-		self.replay_memory[0]
+	def store_transition_in_replay_memory(self, time_step, state, action, reward, new_state, episode_ends):
+		index = time % config.rl_replay_memory_size
+		self.replay_memory[0][index] = state
+		self.replay_memory[1][index] = action
+		self.replay_memory[2][index] = reward
+		if episode_ends is True:
+			self.replay_memory[3][index] = new_state
+		self.replay_memory[4][index] = episode_ends
 
-	def forward_one_step(self, state, action, reward, next_state, episode_ends_or_not):
-		pass
+	def forward_one_step(self, state, action, reward, next_state, episode_ends):
+		xp = cuda.cupy if config.use_gpu else np
+		n_batch = state.shape[0]
+		state = Variable(state)
+		next_state = Variable(state)
+		if config.use_gpu:
+			state.to_gpu()
+			next_state.to_gpu()
+		q = self.compute_q_value_variable(state)
+
+		# Generate target
+		max_target_q_value = self.compute_target_q_value_variable(next_state)
+		max_target_q_value = list(map(xp.max, max_target_q_value.data))
+		max_target_q_value = xp.asanyarray(max_target_q_value, dtype=xp.float32)
+
+		# 教師信号を現在のQ値で初期化
+		target = xp.asanyarray(q.data, dtype=xp.float32)
+
+		for i in xrange(n_batch):
+			# Clip all positive rewards at 1 and all negative rewards at -1
+			# プラスの報酬はすべて1にし、マイナスの報酬はすべて-1にする
+			if episode_ends[i] is True:
+				target_value = np.sign(reward[i])
+			else:
+				target_value = np.sign(reward[i]) + config.rl_discount_factor * max_target_q_value[i]
+			action_index = self.get_index_with_action(action[i])
+
+			# 現在選択した行動に対してのみ誤差を伝播する。
+			# それ以外の行動を表すユニットの2乗誤差は0となる。（target=qとなるため）
+			target[i, action_index] = target_value
+
+		# Compute error
+		target = Variable(target)
+		loss = target - q
+		loss *= loss
+		# Clip the error to be between -1 and 1
+		loss /= loss.data
+
+		zero = Variable(xp.zeros((n_batch, len(config.ale_controllers))))
+		loss = F.mean_squared_error(loss, zero)
+		return loss, q
 
 	def replay_experience(self, time_step):
 		# Sample random minibatch of transitions from replay memory
@@ -147,20 +194,28 @@ class DQN:
 		epsode_ends_or_not = np.empty(shape_action, dtype=np.uint8)
 		for i in xrange(self.rl_minibatch_size):
 			state[i] = self.replay_memory[0][replay_index[i]]
-			action[i] = self.replay_memory[0][replay_index[i]]
-			reward[i] = self.replay_memory[0][replay_index[i]]
-			next_state[i] = self.replay_memory[0][replay_index[i]]
-			epsode_ends_or_not[i] = self.replay_memory[0][replay_index[i]]
-		pass
+			action[i] = self.replay_memory[1][replay_index[i]]
+			reward[i] = self.replay_memory[2][replay_index[i]]
+			next_state[i] = self.replay_memory[3][replay_index[i]]
+			epsode_ends_or_not[i] = self.replay_memory[4][replay_index[i]]
 
-	def compute_q_value(self, state):
+		self.optimizer_conv.zero_grad()
+		if self.fcl_eliminated is False:
+			self.optimizer_fc.zero_grad()
+		loss, _ = self.forward_one_step(state, action, reward, next_state, episode_ends)
+		loss.backward()
+		self.optimizer_conv.update()
+		if self.fcl_eliminated is False:
+			self.optimizer_fc.update()
+
+	def compute_q_value_variable(self, state):
 		output = self.conv(state)
 		if self.fcl_eliminated:
 			return output
 		output = self.fc(output)
 		return output
 
-	def compute_target_q_value(self):
+	def compute_target_q_value_variable(self):
 		output = self.target_conv(state)
 		if self.fcl_eliminated:
 			return output
@@ -169,7 +224,8 @@ class DQN:
 
 	def update_target():
 		self.target_conv = copy.deepcopy(conv)
-		self.target_fc = copy.deepcopy(fc)
+		if self.fcl_eliminated is False:
+			self.target_fc = copy.deepcopy(fc)
 
 	def get_action_with_index(self, i):
 		return self.actions[i]

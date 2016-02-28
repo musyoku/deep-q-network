@@ -21,6 +21,8 @@ class Agent(RLGlueAgent):
 		self.dqn = DQN(config)
 		self.state = np.zeros((config.rl_agent_history_length, config.ale_screen_channels, config.ale_scaled_screen_size[0], self.ale_scaled_screen_size[1]), dtype=np.float32)
 
+		self.exploration_rate = self.dqn.exploration_rate
+
 	def scale_screen(self, observation, new_width, new_height):
 		if len(observation.intArray) == 100928:
 			pass
@@ -51,9 +53,9 @@ class Agent(RLGlueAgent):
 
 	def learn():
 		self.populating_phase = False
-		if self.policy_frozen: 
-			pass
-		else:
+		if self.policy_frozen: # Evaluation phase
+			self.exploration_rate = 0.05
+		else: # Learning phase
 			if self.total_time_step < config.rl_replay_start_size:
 				# A uniform random policy is run for 'replay_start_size' frames before learning starts
 				# 経験を積むためランダムに動き回るらしい。
@@ -61,6 +63,7 @@ class Agent(RLGlueAgent):
 				self.populating_phase = True
 			else:
 				self.dqn.decrease_exploration_rate()
+			self.exploration_rate = self.dqn.exploration_rate
 
 		if self.policy_frozen is False:
 			self.dqn.store_transition_in_replay_memory(self.time_step, self.last_state, self.last_action.intArray[0], reward, self.state, False)
@@ -79,7 +82,7 @@ class Agent(RLGlueAgent):
 		self.state[0] = observed_screen
 
 		return_action = Action()
-		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input())
+		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(), self.exploration_rate)
 		return_action.intArray = [action]
 
 		self.last_action = copy.deepcopy(return_action)
@@ -95,7 +98,7 @@ class Agent(RLGlueAgent):
 		self.learn()
 
 		return_action = Action()
-		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input())
+		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(), self.exploration_rate)
 		return_action.intArray = [action]
 
 		# [Optional]
