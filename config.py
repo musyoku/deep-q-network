@@ -4,13 +4,14 @@ from activations import activations
 
 class Config:
 	def check(self):
-		# Check activations
+		if self.ale_screen_channels != 1 and self.ale_screen_channels != 3:
+			raise Exception("Invalid channels for ale_screen_channels.")
+
 		if self.q_conv_activation_function not in activations:
 			raise Exception("Invalid activation function for q_conv_activation_function.")
 		if self.q_fc_activation_function not in activations:
 			raise Exception("Invalid activation function for q_fc_activation_function.")
 
-		# Check convolutional network
 		n_conv_hidden_layers = len(self.q_conv_hidden_channels)
 		if len(self.q_conv_filter_sizes) != n_conv_hidden_layers:
 			raise Exception("Invlaid number of elements for q_conv_filter_sizes")
@@ -23,7 +24,7 @@ class Config:
 		for n in xrange(len(self.q_conv_hidden_channels)):
 			if (q_output_map_width - self.q_conv_filter_sizes[n]) % self.q_conv_strides[n] != 0:
 				print "WARNING"
-				print "at", (("%d%s" % (n + 1, stndrdth[n])) if n < 3 else "th"), "conv layer:"
+				print "at", (("%d%s" % (n + 1, stndrdth[n])) if n < 3 else ("%dth" % (n + 1))), "conv layer:"
 				print "width of input maps:", q_output_map_width
 				print "stride:", self.q_conv_strides[n]
 				print "filter size:", (self.q_conv_filter_sizes[n], self.q_conv_filter_sizes[n])
@@ -47,7 +48,7 @@ class Config:
 				raise Exception()
 			if q_output_map_height % self.q_conv_strides[n] != 0:
 				print "WARNING"
-				print "at", (("%d%s" % (n + 1, stndrdth[n])) if n < 3 else "th"), "conv layer:"
+				print "at", (("%d%s" % (n + 1, stndrdth[n])) if n < 3 else ("%dth" % (n + 1))), "conv layer:"
 				print "height of input maps:", q_output_map_height
 				print "stride:", self.q_conv_strides[n]
 				print "filter size:", (self.q_conv_filter_sizes[n], self.q_conv_filter_sizes[n])
@@ -74,10 +75,14 @@ class Config:
 		if q_output_map_width <= 0 or q_output_map_height <= 0:
 			raise Exception("The size of the output feature maps will be 0 in the current settings.")
 
-		# print "The size of the output feature maps is", (q_output_map_width, q_output_map_height)
-
-		if config.q_conv_output_projection_type not in {"fully_connection", "global_average_pooling"}:
+		if self.q_conv_output_projection_type not in {"fully_connection", "global_average_pooling"}:
 			raise Exception("Invalid type of projection for q_conv_output_projection_type.")
+
+		if len(self.q_fc_hidden_units) == 0:
+			self.q_conv_output_vector_dimension = len(self.ale_actions)
+		if self.rl_replay_start_size > self.rl_replay_memory_size:
+			self.rl_replay_start_size = self.rl_replay_memory_size
+
 
 config = Config()
 
@@ -87,10 +92,12 @@ config.apply_batchnorm = True
 
 # ALE
 ## Raw screen image width and height.
+## [x, y]
 config.ale_screen_size = [120, 280]
 
 ## Scaled screen image width and height.
 ## Input scaled images to convolutional network
+## [x, y]
 config.ale_scaled_screen_size = [62, 142]
 
 ## greyscale -> 1
@@ -106,24 +113,20 @@ config.ale_screen_channels = 1
 config.ale_actions = [0, 3, 4]
 
 # Reinforcment Learning
-## These hyperparameters are based on the original paper in Nature.
+## These hyperparameters are based on the original Nature Letter.
 ## For more details see following:
 ## [Human-level control through deep reinforcement learning](http://www.nature.com/nature/journal/v518/n7540/abs/nature14236.html)
-
-config.rl_minibatch_size = 32
 
 ## The number of most recent frames experienced by the agent that are given as input to the convolutional network
 config.rl_agent_history_length = 4
 
+config.rl_minibatch_size = 32
 config.rl_replay_memory_size = 10 ** 5
 config.rl_target_network_update_frequency = 10 ** 4
 config.rl_discount_factor = 0.99
 config.rl_update_frequency = 4
 config.rl_learning_rate = 0.00025
-
-## Gradient momentum used by optimizer of Chainer (RMSProp, ADAM, etc...)
 config.rl_gradient_momentum = 0.95
-
 config.rl_initial_exploration = 1.0
 config.rl_final_exploration = 0.1
 config.rl_final_exploration_frame = 10 ** 6
@@ -162,10 +165,10 @@ config.q_conv_apply_batchnorm_to_input = False
 
 ## Single fully connected layer is placed on top of the convolutional network to convert output feature maps to vector.
 ## This vector is fed into fully connected layers.
-## If you eliminate the fully connected layer, set the value of len(config.ale_actions).
+## It will be ignored when you eliminate the fully connected layer.
 ## 畳み込み層の最終的な出力マップをベクトルへ変換するときの次元数です。このベクトルは全結合層へ入力されます。
-## 全結合層を使わない場合はlen(config.ale_actions)と同じ値にしてください。
-config.q_conv_output_vector_dimension = 100
+## 全結合層を使わない場合は無視されます。
+config.q_conv_output_vector_dimension = 1000
 
 ## "global_average_pooling" or "fully_connection"
 ## Specify how to convert the output feature maps to vector
@@ -175,7 +178,7 @@ config.q_conv_output_projection_type = "fully_connection"
 
 ## The number of units for each fully connected layer.
 ## These are placed on top of the convolutional network.
-## set [] if you want to eliminate fully connected layers. It is OK because convolutinal network outputs a vector.
+## Set [] if you want to eliminate fully connected layers. It is OK because convolutinal network outputs a vector.
 ## Note: There is the trend towards eliminating fully connected layers to avoid overfitting.
 ## 畳み込み層を接続する全結合層のユニット数を入力側から出力側に向かって並べてください。
 ## []を指定すれば全結合層を削除できます。

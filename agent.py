@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
+import copy
 import scipy.misc as spm
+import numpy as np
 from rlglue.agent.Agent import Agent as RLGlueAgent
 from rlglue.types import Action
 from rlglue.utils import TaskSpecVRLGLUE3
+from dqn import DQN
 from config import config
+from PIL import Image
 
 class Agent(RLGlueAgent):
 	def __init__(self):
@@ -18,40 +22,65 @@ class Agent(RLGlueAgent):
 		# Switch learning phase / evaluation phase
 		self.policy_frozen = False
 
-		self.dqn = DQN(config)
-		self.state = np.zeros((config.rl_agent_history_length, config.ale_screen_channels, config.ale_scaled_screen_size[0], self.ale_scaled_screen_size[1]), dtype=np.float32)
-
+		self.dqn = DQN()
+		self.state = np.zeros((config.rl_agent_history_length, config.ale_screen_channels, config.ale_scaled_screen_size[1], config.ale_scaled_screen_size[0]), dtype=np.float32)
 		self.exploration_rate = self.dqn.exploration_rate
 
-	def scale_screen(self, observation, new_width, new_height):
-		if len(observation.intArray) == 100928:
-			pass
+	def scale_screen(self, observation):
+		screen_width = config.ale_screen_size[0]
+		screen_height = config.ale_screen_size[1]
+		new_width = config.ale_scaled_screen_size[0]
+		new_height = config.ale_scaled_screen_size[1]
+		if len(observation.intArray) == 100928: 
+			if config.ale_screen_channels == 1:
+				raise Exception("You forgot to set config.ale_screen_channels to 3.")
+			# RGB
+			observation = np.asarray(observation.intArray[128:], dtype=np.uint8).reshape((screen_width, screen_height, 3))
+			observation = spm.imresize(observation, (new_height, new_width))
+			# Clip the pixel value to be between 0 and 1
+			observation = observation.transpose(2, 0, 1) / 255.0
 		else:
+			# Greyscale
 			if config.ale_screen_channels == 3:
 				raise Exception("You forgot to add --send_rgb option when you run ALE.")
-		observation = np.bitwise_and(np.asarray(observation.intArray[128:]).reshape([210, 160]), 0b0001111)
-		observation = (spm.imresize(tmp, (110, 84)))[110-84-8:110-8,:]
+			observation = np.asarray(observation.intArray[128:]).reshape((screen_width, screen_height))
+			observation = spm.imresize(observation, (new_height, new_width))
+			# Clip the pixel value to be between 0 and 1
+			observation = observation.reshape((1, new_height, new_width)) / 255.0
+
 		return observation
 
 	def agent_init(self, taskSpecString):
-		print "Initializing Agent..."
-		print "Task Spec:"
-		print TaskSpecVRLGLUE3.TaskSpecParser(taskSpecString)
+		pass
 
-	def reshape_state_to_conv_input(self):
-		state = self.state.reshape((1, config.rl_agent_history_length * config.ale_screen_channels, config.ale_scaled_screen_size[0], self.ale_scaled_screen_size[1]))
-		return state
+	def reshape_state_to_conv_input(self, state):
+		return state.reshape((1, config.rl_agent_history_length * config.ale_screen_channels, config.ale_scaled_screen_size[1], config.ale_scaled_screen_size[0]))
 
-	def dump(self, reward, q):
+	def dump_result(self, reward, q=None):
 		if self.time_step % 50 == 0:
 			print "time_step:", self.time_step,
 			print "reward:", reward,
 			print "e:", self.dqn.exploration_rate,
-			print "Q:",
-			print "max::", np.max(q),
-			print "min::", np.min(q)
+			if q is not None:
+				print "Q:",
+				print "max::", np.max(q),
+				print "min::", np.min(q)
 
-	def learn():
+	def dump_state(self):
+		state = self.reshape_state_to_conv_input(self.state)
+		for h in xrange(config.rl_agent_history_length):
+			start = h * config.ale_screen_channels
+			end = start + config.ale_screen_channels
+			image = state[0,start:end,:,:]
+			if config.ale_screen_channels == 1:
+				image = image.reshape((image.shape[1], image.shape[2]))
+			elif config.ale_screen_channels == 3:
+				image = image.transpose(1, 2, 0)
+			image = np.uint8(image * 255.0)
+			image = Image.fromarray(image)
+			image.save(("state-%d.png" % h))
+
+	def learn(self, reward):
 		self.populating_phase = False
 		if self.policy_frozen: # Evaluation phase
 			self.exploration_rate = 0.05
@@ -66,15 +95,13 @@ class Agent(RLGlueAgent):
 			self.exploration_rate = self.dqn.exploration_rate
 
 		if self.policy_frozen is False:
-			self.dqn.store_transition_in_replay_memory(self.time_step, self.last_state, self.last_action.intArray[0], reward, self.state, False)
+			self.dqn.store_transition_in_replay_memory(self.time_step, self.reshape_state_to_conv_input(self.last_state), self.last_action.intArray[0], reward, self.reshape_state_to_conv_input(self.state), False)
 			if self.populating_phase is False:
-				self.dqn.replay_experience(self.time_step)
-				if self.time_step % config.rl_target_network_update_frequency == 0 and self.time_step != 0:
+				if self.time_step % (config.rl_agent_history_length * config.rl_update_frequency) == 0 and self.time_step != 0:
+					self.dqn.replay_experience(self.total_time_step)
+				if self.total_time_step % config.rl_target_network_update_frequency == 0 and self.total_time_step != 0:
 					print "Target has been updated."
 					self.dqn.update_target()
-					if self.episode_step != 0 and self.episode_step % self.model_save_interval == 0:
-						self.dqn.save()
-
 
 	def agent_start(self, observation):
 		print "Episode", self.episode_step
@@ -82,12 +109,12 @@ class Agent(RLGlueAgent):
 		self.state[0] = observed_screen
 
 		return_action = Action()
-		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(), self.exploration_rate)
+		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate)
 		return_action.intArray = [action]
 
 		self.last_action = copy.deepcopy(return_action)
 		self.last_state = self.state.copy()
-		self.last_observation = obs_array
+		self.last_observation = observed_screen
 
 		return return_action
 
@@ -95,15 +122,20 @@ class Agent(RLGlueAgent):
 		observed_screen = self.scale_screen(observation)
 		self.state = np.asanyarray([self.state[1], self.state[2], self.state[3], observed_screen], dtype=np.float32)
 
-		self.learn()
+
+		########################### DEBUG ###############################
+		if self.total_time_step % 500 == 0 and self.total_time_step != 0:
+			self.dump_state()
+
+		self.learn(reward)
 
 		return_action = Action()
-		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(), self.exploration_rate)
+		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate)
 		return_action.intArray = [action]
 
 		# [Optional]
 		## Visualizing the results
-		self.dump(reward, q)
+		self.dump_result(reward, q)
 
 		self.last_observation = observed_screen
 
@@ -116,11 +148,11 @@ class Agent(RLGlueAgent):
 		return return_action
 
 	def agent_end(self, reward):
-		self.learn()
+		self.learn(reward)
 
 		# [Optional]
 		## Visualizing the results
-		self.dump(reward, q)
+		self.dump_result(reward, q=None)
 
 		if self.policy_frozen is False:
 			self.time_step = 0
@@ -131,13 +163,17 @@ class Agent(RLGlueAgent):
 		pass
 
 	def agent_message(self, inMessage):
-		if inMessage.startswith("freeze learning"):
+		if inMessage.startswith("freeze_policy"):
 			self.policy_frozen = True
-			return "message understood, policy frozen"
+			return "The policy was freezed."
 
-		if inMessage.startswith("unfreeze learning"):
+		if inMessage.startswith("unfreeze_policy"):
 			self.policy_frozen = False
-			return "message understood, policy unfrozen"
+			return "The policy was unfreezed."
+
+		if inMessage.startswith("save_model"):
+			self.dqn.save()
+			return "The model was saved."
 
 if __name__ == "__main__":
 	AgentLoader.loadAgent(dqn_agent())
