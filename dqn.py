@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import chainer, math, copy
+import chainer, math, copy, os
 from chainer import cuda, Variable, optimizers, serializers
 from chainer import functions as F
 from chainer import links as L
@@ -116,35 +116,39 @@ class DQN:
 			np.zeros(shape_state, dtype=np.float32),
 			np.zeros(shape_action, dtype=np.bool)
 		]
+		self.total_replay_memory = 0
+		self.load()
 
-	def e_greedy(self, state, exploration_rate):
-		state = Variable(state)
-		if config.use_gpu:
-			state.to_gpu()
-		q = self.compute_q_value_variable(state)
-		if config.use_gpu:
-			q.to_cpu()
-		q = q.data
+	def e_greedy(self, state, exploration_rate, test=False):
 		prop = np.random.uniform()
 		if prop < exploration_rate:
 			# Select a random action
 			action_index = np.random.randint(0, len(config.ale_actions))
+			q = None
 		else:
 			# Select a greedy action
+			state = Variable(state)
+			if config.use_gpu:
+				state.to_gpu()
+			q = self.compute_q_variable(state, test=True)
+			if config.use_gpu:
+				q.to_cpu()
+			q = q.data
 			action_index = np.argmax(q)
 
 		return self.get_action_with_index(action_index), q
 
-	def store_transition_in_replay_memory(self, time_step, state, action, reward, new_state, episode_ends):
-		index = time_step % config.rl_replay_memory_size
+	def store_transition_in_replay_memory(self, state, action, reward, next_state, episode_ends):
+		index = self.total_replay_memory % config.rl_replay_memory_size
 		self.replay_memory[0][index] = state
 		self.replay_memory[1][index] = action
 		self.replay_memory[2][index] = reward
-		if episode_ends is True:
-			self.replay_memory[3][index] = new_state
+		if episode_ends is False:
+			self.replay_memory[3][index] = next_state
 		self.replay_memory[4][index] = episode_ends
+		self.total_replay_memory += 1
 
-	def forward_one_step(self, state, action, reward, next_state, episode_ends):
+	def forward_one_step(self, state, action, reward, next_state, episode_ends, test=False):
 		xp = cuda.cupy if config.use_gpu else np
 		n_batch = state.shape[0]
 		state = Variable(state)
@@ -152,12 +156,12 @@ class DQN:
 		if config.use_gpu:
 			state.to_gpu()
 			next_state.to_gpu()
-		q = self.compute_q_value_variable(state)
+		q = self.compute_q_variable(state, test=test)
 
 		# Generate target
-		max_target_q_value = self.compute_target_q_value_variable(next_state)
-		max_target_q_value = list(map(xp.max, max_target_q_value.data))
-		max_target_q_value = xp.asanyarray(max_target_q_value, dtype=xp.float32)
+		max_target_q = self.compute_target_q_variable(next_state, test=False)
+		max_target_q = list(map(xp.max, max_target_q.data))
+		max_target_q = xp.asanyarray(max_target_q, dtype=xp.float32)
 
 		# 教師信号を現在のQ値で初期化
 		target = xp.asanyarray(q.data, dtype=xp.float32)
@@ -168,7 +172,7 @@ class DQN:
 			if episode_ends[i] is True:
 				target_value = np.sign(reward[i])
 			else:
-				target_value = np.sign(reward[i]) + config.rl_discount_factor * max_target_q_value[i]
+				target_value = np.sign(reward[i]) + config.rl_discount_factor * max_target_q[i]
 			action_index = self.get_index_with_action(action[i])
 
 			# 現在選択した行動に対してのみ誤差を伝播する。
@@ -186,12 +190,12 @@ class DQN:
 		loss = F.mean_squared_error(loss, zero)
 		return loss, q
 
-	def replay_experience(self, time_step):
-		if time_step == 0:
+	def replay_experience(self):
+		if self.total_replay_memory == 0:
 			return
 		# Sample random minibatch of transitions from replay memory
-		if time_step < config.rl_replay_memory_size:
-			replay_index = np.random.randint(0, time_step, (config.rl_minibatch_size, 1))
+		if self.total_replay_memory < config.rl_replay_memory_size:
+			replay_index = np.random.randint(0, self.total_replay_memory, (config.rl_minibatch_size, 1))
 		else:
 			replay_index = np.random.randint(0, config.rl_replay_memory_size, (config.rl_minibatch_size, 1))
 
@@ -213,24 +217,24 @@ class DQN:
 		self.optimizer_conv.zero_grads()
 		if self.fcl_eliminated is False:
 			self.optimizer_fc.zero_grads()
-		loss, _ = self.forward_one_step(state, action, reward, next_state, episode_ends)
+		loss, _ = self.forward_one_step(state, action, reward, next_state, episode_ends, test=False)
 		loss.backward()
 		self.optimizer_conv.update()
 		if self.fcl_eliminated is False:
 			self.optimizer_fc.update()
 
-	def compute_q_value_variable(self, state):
-		output = self.conv(state)
+	def compute_q_variable(self, state, test=False):
+		output = self.conv(state, test=test)
 		if self.fcl_eliminated:
 			return output
-		output = self.fc(output)
+		output = self.fc(output, test=test)
 		return output
 
-	def compute_target_q_value_variable(self, state):
-		output = self.target_conv(state)
+	def compute_target_q_variable(self, state, test=True):
+		output = self.target_conv(state, test=test)
 		if self.fcl_eliminated:
 			return output
-		output = self.target_fc(output)
+		output = self.target_fc(output, test=test)
 		return output
 
 	def update_target(self):
@@ -250,12 +254,25 @@ class DQN:
 		if self.exploration_rate < config.rl_final_exploration:
 			self.exploration_rate = config.rl_final_exploration
 
-	def save():
-		pass
+	def load(self):
+		filename = "conv.model"
+		if os.path.isfile(filename):
+			serializers.load_hdf5(filename, self.conv)
+			print "Loaded convolutional network."
+		if self.fcl_eliminated is False:
+			filename = "fc.model"
+			if os.path.isfile(filename):
+				serializers.load_hdf5(filename, self.fc)
+				print "Loaded fully-connected network."
+
+	def save(self):
+		serializers.save_hdf5("conv.model", self.conv)
+		if self.fcl_eliminated is False:
+			serializers.save_hdf5("fc.model", self.fc)
+
 
 def build_q_network(config):
 	config.check()
-	initial_weight_variance = 0.0001
 
 	# Convolutional part of Q-Network
 	conv_attributes = {}
@@ -269,11 +286,11 @@ def build_q_network(config):
 		output_map_height = (output_map_height - config.q_conv_filter_sizes[n]) / config.q_conv_strides[n] + 1
 
 	for i, (n_in, n_out) in enumerate(conv_channels):
-		conv_attributes["layer_%i" % i] = L.Convolution2D(n_in, n_out, config.q_conv_filter_sizes[i], stride=config.q_conv_strides[i], wscale=initial_weight_variance * math.sqrt(n_in * n_out))
+		conv_attributes["layer_%i" % i] = L.Convolution2D(n_in, n_out, config.q_conv_filter_sizes[i], stride=config.q_conv_strides[i])
 		conv_attributes["batchnorm_%i" % i] = L.BatchNormalization(n_out)
 
 	if config.q_conv_output_projection_type == "fully_connection":
-		conv_attributes["projection_layer"] = L.Linear(output_map_width * output_map_height * config.q_conv_hidden_channels[-1], config.q_conv_output_vector_dimension, wscale=initial_weight_variance * math.sqrt(output_map_width * output_map_height * config.q_conv_output_vector_dimension))
+		conv_attributes["projection_layer"] = L.Linear(output_map_width * output_map_height * config.q_conv_hidden_channels[-1], config.q_conv_output_vector_dimension)
 
 	conv = ConvolutionalNetwork(**conv_attributes)
 	conv.n_hidden_layers = len(config.q_conv_hidden_channels)
@@ -293,7 +310,7 @@ def build_q_network(config):
 		fc_units += [(config.q_fc_hidden_units[-1], len(config.ale_actions))]
 
 		for i, (n_in, n_out) in enumerate(fc_units):
-			fc_attributes["layer_%i" % i] = L.Linear(n_in, n_out, wscale=initial_weight_variance * math.sqrt(n_in * n_out))
+			fc_attributes["layer_%i" % i] = L.Linear(n_in, n_out)
 			fc_attributes["batchnorm_%i" % i] = L.BatchNormalization(n_out)
 
 		fc = FullyConnectedNetwork(**fc_attributes)

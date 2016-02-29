@@ -61,10 +61,13 @@ class Agent(RLGlueAgent):
 			print "time_step:", self.time_step,
 			print "reward:", reward,
 			print "e:", self.dqn.exploration_rate,
-			if q is not None:
+			if q is None:
+				print ""
+			else:
 				print "Q:",
 				print "max::", np.max(q),
 				print "min::", np.min(q)
+
 
 	def dump_state(self):
 		state = self.reshape_state_to_conv_input(self.state)
@@ -85,20 +88,23 @@ class Agent(RLGlueAgent):
 		if self.policy_frozen: # Evaluation phase
 			self.exploration_rate = 0.05
 		else: # Learning phase
-			if self.total_time_step < config.rl_replay_start_size:
+			if self.total_time_step <= config.rl_replay_start_size:
 				# A uniform random policy is run for 'replay_start_size' frames before learning starts
 				# 経験を積むためランダムに動き回るらしい。
 				print "Initial exploration before learning starts:", "%d/%d steps" % (self.total_time_step, config.rl_replay_start_size)
 				self.populating_phase = True
+				if self.total_time_step == config.rl_replay_start_size:
+					# Copy batchnorm statistics to target
+					self.dqn.update_target()
 			else:
 				self.dqn.decrease_exploration_rate()
 			self.exploration_rate = self.dqn.exploration_rate
 
 		if self.policy_frozen is False:
-			self.dqn.store_transition_in_replay_memory(self.time_step, self.reshape_state_to_conv_input(self.last_state), self.last_action.intArray[0], reward, self.reshape_state_to_conv_input(self.state), False)
+			self.dqn.store_transition_in_replay_memory(self.reshape_state_to_conv_input(self.last_state), self.last_action.intArray[0], reward, self.reshape_state_to_conv_input(self.state), False)
 			if self.populating_phase is False:
-				if self.time_step % (config.rl_agent_history_length * config.rl_update_frequency) == 0 and self.time_step != 0:
-					self.dqn.replay_experience(self.total_time_step)
+				if self.time_step % (config.rl_action_repeat * config.rl_update_frequency) == 0 and self.time_step != 0:
+					self.dqn.replay_experience()
 				if self.total_time_step % config.rl_target_network_update_frequency == 0 and self.total_time_step != 0:
 					print "Target has been updated."
 					self.dqn.update_target()
@@ -109,7 +115,7 @@ class Agent(RLGlueAgent):
 		self.state[0] = observed_screen
 
 		return_action = Action()
-		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate)
+		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate, test=self.policy_frozen)
 		return_action.intArray = [action]
 
 		self.last_action = copy.deepcopy(return_action)
@@ -130,7 +136,11 @@ class Agent(RLGlueAgent):
 		self.learn(reward)
 
 		return_action = Action()
-		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate)
+		if self.time_step % config.rl_action_repeat == 0:
+			action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate, test=self.policy_frozen)
+		else:
+			action = self.last_action.intArray[0]
+			q = None
 		return_action.intArray = [action]
 
 		# [Optional]

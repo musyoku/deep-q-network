@@ -82,6 +82,8 @@ class Config:
 			self.q_conv_output_vector_dimension = len(self.ale_actions)
 		if self.rl_replay_start_size > self.rl_replay_memory_size:
 			self.rl_replay_start_size = self.rl_replay_memory_size
+		if self.rl_action_repeat < 1:
+			self.rl_action_repeat = 1
 
 
 config = Config()
@@ -92,12 +94,12 @@ config.apply_batchnorm = True
 
 # ALE
 ## Raw screen image width and height.
-## [x, y]
+## [width, height]
 config.ale_screen_size = [120, 280]
 
 ## Scaled screen image width and height.
 ## Input scaled images to convolutional network
-## [x, y]
+## [width, height]
 config.ale_scaled_screen_size = [62, 142]
 
 ## greyscale -> 1
@@ -120,8 +122,12 @@ config.ale_actions = [0, 3, 4]
 ## The number of most recent frames experienced by the agent that are given as input to the convolutional network
 config.rl_agent_history_length = 4
 
+## This value must be 1 or more 
+## Original Nature Letter: 4 (= config.rl_action_repeat * --frame_skip(We use a value of 4 when we run the ALE))
+config.rl_action_repeat = 1
+
 config.rl_minibatch_size = 32
-config.rl_replay_memory_size = 10 ** 5
+config.rl_replay_memory_size = 10 ** 6
 config.rl_target_network_update_frequency = 10 ** 4
 config.rl_discount_factor = 0.99
 config.rl_update_frequency = 4
