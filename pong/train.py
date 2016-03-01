@@ -13,7 +13,7 @@ config.ale_screen_channels = 3
 config.rl_replay_memory_size = 5 * 10 ** 4
 config.ale_screen_size = [210, 160]
 config.ale_scaled_screen_size = [110, 94]
-config.rl_replay_start_size = 5 * 10 ** 4
+config.rl_replay_start_size = 10 ** 4
 config.q_conv_hidden_channels = [128, 256, 512, 512]
 
 # Eliminate fully connected layers

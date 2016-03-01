@@ -94,6 +94,7 @@ class DQN:
 		self.conv = conv
 		if self.fcl_eliminated is False:
 			self.fc = fc
+		self.load()
 		self.update_target()
 
 		# Optimizer
@@ -101,9 +102,14 @@ class DQN:
 		## See http://docs.chainer.org/en/stable/reference/optimizers.html
 		self.optimizer_conv = optimizers.Adam(alpha=config.rl_learning_rate, beta1=config.rl_gradient_momentum)
 		self.optimizer_conv.setup(self.conv)
+		## To avoid memory allocation error
+		## おまじない
+		self.optimizer_conv.zero_grads()
 		if self.fcl_eliminated is False:
 			self.optimizer_fc = optimizers.Adam(alpha=config.rl_learning_rate, beta1=config.rl_gradient_momentum)
 			self.optimizer_fc.setup(self.fc)
+			## おまじない
+			self.optimizer_fc.zero_grads()
 
 		# Replay Memory
 		## (state, action, reward, next_state, episode_ends)
@@ -117,14 +123,15 @@ class DQN:
 			np.zeros(shape_action, dtype=np.bool)
 		]
 		self.total_replay_memory = 0
-		self.load()
+		self.no_op_count = 0
 
-	def e_greedy(self, state, exploration_rate, test=False):
+	def eps_greedy(self, state, exploration_rate):
 		prop = np.random.uniform()
+		q_max = None
+		q_min = None
 		if prop < exploration_rate:
 			# Select a random action
 			action_index = np.random.randint(0, len(config.ale_actions))
-			q = None
 		else:
 			# Select a greedy action
 			state = Variable(state)
@@ -132,11 +139,29 @@ class DQN:
 				state.to_gpu()
 			q = self.compute_q_variable(state, test=True)
 			if config.use_gpu:
-				q.to_cpu()
-			q = q.data
-			action_index = np.argmax(q)
+				action_index = cuda.to_cpu(cuda.cupy.argmax(q.data))
+				q_max = cuda.to_cpu(cuda.cupy.max(q.data))
+				q_min = cuda.to_cpu(cuda.cupy.min(q.data))
+			else:
+				action_index = np.argmax(q.data)
+				q_max = np.max(q.data)
+				q_min = np.min(q.data)
 
-		return self.get_action_with_index(action_index), q
+		action = self.get_action_with_index(action_index)
+		# No-op
+		self.no_op_count = self.no_op_count + 1 if action == 0 else 0
+		if self.no_op_count > config.rl_no_op_max:
+			no_op_index = np.argmin(np.asarray(config.ale_actions))
+			actions_without_no_op = []
+			for i in range(len(config.ale_actions)):
+				if i == no_op_index:
+					continue
+				actions_without_no_op.append(config.ale_actions[i])
+			action_index = np.random.randint(0, len(actions_without_no_op))
+			action = actions_without_no_op[action_index]
+			print "Reached no_op_max.", "New action:", action
+
+		return action, q_max, q_min
 
 	def store_transition_in_replay_memory(self, state, action, reward, next_state, episode_ends):
 		index = self.total_replay_memory % config.rl_replay_memory_size
@@ -159,12 +184,13 @@ class DQN:
 		q = self.compute_q_variable(state, test=test)
 
 		# Generate target
-		max_target_q = self.compute_target_q_variable(next_state, test=False)
+		max_target_q = self.compute_target_q_variable(next_state, test=test)
 		max_target_q = list(map(xp.max, max_target_q.data))
 		max_target_q = xp.asanyarray(max_target_q, dtype=xp.float32)
 
+		# Initialize target signal
 		# 教師信号を現在のQ値で初期化
-		target = xp.asanyarray(q.data, dtype=xp.float32)
+		target = q.data.copy()
 
 		for i in xrange(n_batch):
 			# Clip all positive rewards at 1 and all negative rewards at -1
@@ -183,10 +209,15 @@ class DQN:
 		target = Variable(target)
 		loss = target - q
 		loss *= loss
-		# Clip the error to be between -1 and 1
-		loss /= (abs(loss.data) + 1.0)
 
-		zero = Variable(xp.zeros((n_batch, len(config.ale_actions)), dtype=xp.float32))
+		# loss is a one-hot vector in which non-zero element(= loss signal) corresponds to the taken action.
+		# lossは実際にとった行動に対してのみ誤差を考え、それ以外の行動に対しては誤差が0となるone-hotなベクトルです。
+
+		# Clip the error to be between -1 and 1. In order to avoid division by zero we add 1e-5.
+		# 1を超えるものはすべて1にする。（-1も同様）
+		loss /= (xp.maximum(loss.data, xp.ones(loss.data.shape, dtype=xp.float32)) + 1e-5)
+
+		zero = Variable(xp.zeros(loss.data.shape, dtype=xp.float32))
 		loss = F.mean_squared_error(loss, zero)
 		return loss, q
 

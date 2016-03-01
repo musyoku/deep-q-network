@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
+import time
 import rlglue.RLGlue as RLGlue
 
 max_episode = 10000
 
 total_episode = 0
 learned_episode = 0
+total_time = 0
 
 
 def run_episode(learning=True):
-    global total_episode, learned_episode
+    global total_episode, learned_episode, total_time
+    start_time = time.time()
     RLGlue.RL_episode(0)
     total_steps = RLGlue.RL_num_steps()
     total_reward = RLGlue.RL_return()
 
     total_episode += 1
+    elapsed_time = time.time() - start_time
+    total_time += elapsed_time
 
     if learning:
         learned_episode += 1
-        print "Episode:", learned_episode, "total_steps:", total_steps, "total_reward:", total_reward
+        print "Episode:", learned_episode, "total_steps:", total_steps, "total_reward:", total_reward, "time:", "%d%s" % (int(elapsed_time / 60), "min"),  "total_time:", "%d%s" % (int(total_time / 60), "min")
     else:
         print "Evaluation:", learned_episode, "total_steps:", total_steps, "total_reward:", total_reward
 

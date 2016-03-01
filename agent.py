@@ -56,17 +56,17 @@ class Agent(RLGlueAgent):
 	def reshape_state_to_conv_input(self, state):
 		return state.reshape((1, config.rl_agent_history_length * config.ale_screen_channels, config.ale_scaled_screen_size[1], config.ale_scaled_screen_size[0]))
 
-	def dump_result(self, reward, q=None):
+	def dump_result(self, reward, q_max=None, q_min=None):
 		if self.time_step % 50 == 0:
 			print "time_step:", self.time_step,
 			print "reward:", reward,
-			print "e:", self.dqn.exploration_rate,
-			if q is None:
+			print "eps:", self.dqn.exploration_rate,
+			if q_min is None:
 				print ""
 			else:
-				print "Q:",
-				print "max::", np.max(q),
-				print "min::", np.min(q)
+				print "Q ::",
+				print "max:", q_max,
+				print "min:", q_min
 
 
 	def dump_state(self):
@@ -83,7 +83,7 @@ class Agent(RLGlueAgent):
 			image = Image.fromarray(image)
 			image.save(("state-%d.png" % h))
 
-	def learn(self, reward):
+	def learn(self, reward, epsode_ends=False):
 		self.populating_phase = False
 		if self.policy_frozen: # Evaluation phase
 			self.exploration_rate = 0.05
@@ -101,9 +101,9 @@ class Agent(RLGlueAgent):
 			self.exploration_rate = self.dqn.exploration_rate
 
 		if self.policy_frozen is False:
-			self.dqn.store_transition_in_replay_memory(self.reshape_state_to_conv_input(self.last_state), self.last_action.intArray[0], reward, self.reshape_state_to_conv_input(self.state), False)
+			self.dqn.store_transition_in_replay_memory(self.reshape_state_to_conv_input(self.last_state), self.last_action.intArray[0], reward, self.reshape_state_to_conv_input(self.state), epsode_ends)
 			if self.populating_phase is False:
-				if self.time_step % (config.rl_action_repeat * config.rl_update_frequency) == 0 and self.time_step != 0:
+				if self.total_time_step % (config.rl_action_repeat * config.rl_update_frequency) == 0 and self.total_time_step != 0:
 					self.dqn.replay_experience()
 				if self.total_time_step % config.rl_target_network_update_frequency == 0 and self.total_time_step != 0:
 					print "Target has been updated."
@@ -115,7 +115,7 @@ class Agent(RLGlueAgent):
 		self.state[0] = observed_screen
 
 		return_action = Action()
-		action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate, test=self.policy_frozen)
+		action, q_max, q_min = self.dqn.eps_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate)
 		return_action.intArray = [action]
 
 		self.last_action = copy.deepcopy(return_action)
@@ -136,16 +136,17 @@ class Agent(RLGlueAgent):
 		self.learn(reward)
 
 		return_action = Action()
+		q_max = None
+		q_min = None
 		if self.time_step % config.rl_action_repeat == 0:
-			action, q = self.dqn.e_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate, test=self.policy_frozen)
+			action, q_max, q_min = self.dqn.eps_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate)
 		else:
 			action = self.last_action.intArray[0]
-			q = None
 		return_action.intArray = [action]
 
 		# [Optional]
 		## Visualizing the results
-		self.dump_result(reward, q)
+		self.dump_result(reward, q_max, q_min)
 
 		self.last_observation = observed_screen
 
@@ -158,11 +159,11 @@ class Agent(RLGlueAgent):
 		return return_action
 
 	def agent_end(self, reward):
-		self.learn(reward)
+		self.learn(reward, epsode_ends=True)
 
 		# [Optional]
 		## Visualizing the results
-		self.dump_result(reward, q=None)
+		self.dump_result(reward)
 
 		if self.policy_frozen is False:
 			self.time_step = 0
