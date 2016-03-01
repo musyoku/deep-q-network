@@ -214,7 +214,7 @@ class DQN:
 
 		# Clip the error to be between -1 and 1.
 		# 1を超えるものはすべて1にする。（-1も同様）
-		loss /= (xp.maximum(loss.data, xp.ones(loss.data.shape, dtype=xp.float32)))
+		loss /= xp.maximum(loss.data, xp.ones(loss.data.shape, dtype=xp.float32))
 
 		loss = F.sum(loss) / n_batch
 		return loss, q

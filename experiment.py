@@ -35,6 +35,7 @@ while learned_episode < max_episode:
         print "Freezing the policy for evaluation..."
         RLGlue.RL_agent_message("freeze_policy")
         run_episode(learning=False)
+        continue
     else:
         RLGlue.RL_agent_message("unfreeze_policy")
         run_episode(learning=True)

@@ -25,6 +25,7 @@ class Agent(RLGlueAgent):
 		self.dqn = DQN()
 		self.state = np.zeros((config.rl_agent_history_length, config.ale_screen_channels, config.ale_scaled_screen_size[1], config.ale_scaled_screen_size[0]), dtype=np.float32)
 		self.exploration_rate = self.dqn.exploration_rate
+		self.exploration_rate_for_evaluation = 0.05
 
 	def scale_screen(self, observation):
 		screen_width = config.ale_screen_size[0]
@@ -60,7 +61,7 @@ class Agent(RLGlueAgent):
 		if self.time_step % 50 == 0:
 			print "time_step:", self.time_step,
 			print "reward:", reward,
-			print "eps:", self.dqn.exploration_rate,
+			print "eps:", self.exploration_rate,
 			if q_min is None:
 				print ""
 			else:
@@ -84,33 +85,32 @@ class Agent(RLGlueAgent):
 			image.save(("state-%d.png" % h))
 
 	def learn(self, reward, epsode_ends=False):
-		if self.policy_frozen: # Evaluation phase
-			self.exploration_rate = 0.05
-		else: # Learning phase
+		if self.policy_frozen is False:
+			self.dqn.store_transition_in_replay_memory(self.reshape_state_to_conv_input(self.last_state), self.last_action.intArray[0], reward, self.reshape_state_to_conv_input(self.state), epsode_ends)
 			if self.total_time_step <= config.rl_replay_start_size:
 				# A uniform random policy is run for 'replay_start_size' frames before learning starts
 				# 経験を積むためランダムに動き回るらしい。
-				print "Initial exploration before learning starts:", "%d/%d steps" % (self.total_time_step, config.rl_replay_start_size)
+				print "Initial exploration before learning starts:", "%d/%d" % (self.total_time_step, config.rl_replay_start_size)
 				self.populating_phase = True
-				if self.total_time_step == config.rl_replay_start_size:
-					# Copy batchnorm statistics to target
-					self.dqn.update_target()
 			else:
 				self.populating_phase = False
+				
 				self.dqn.decrease_exploration_rate()
-			self.exploration_rate = self.dqn.exploration_rate
+				self.exploration_rate = self.dqn.exploration_rate
 
-		if self.policy_frozen is False:
-			self.dqn.store_transition_in_replay_memory(self.reshape_state_to_conv_input(self.last_state), self.last_action.intArray[0], reward, self.reshape_state_to_conv_input(self.state), epsode_ends)
-			if self.populating_phase is False:
 				if self.total_time_step % (config.rl_action_repeat * config.rl_update_frequency) == 0 and self.total_time_step != 0:
 					self.dqn.replay_experience()
+
 				if self.total_time_step % config.rl_target_network_update_frequency == 0 and self.total_time_step != 0:
 					print "Target has been updated."
 					self.dqn.update_target()
 
 	def agent_start(self, observation):
-		print "Episode", self.episode_step
+		print "Episode", self.episode_step, "::", "total_time_step:",
+		if self.total_time_step > 1000:
+			print int(self.total_time_step / 1000), "K"
+		else:
+			print self.total_time_step
 		observed_screen = self.scale_screen(observation)
 		self.state[0] = observed_screen
 
@@ -176,16 +176,15 @@ class Agent(RLGlueAgent):
 	def agent_message(self, inMessage):
 		if inMessage.startswith("freeze_policy"):
 			self.policy_frozen = True
+			self.exploration_rate = self.exploration_rate_for_evaluation
 			return "The policy was freezed."
 
 		if inMessage.startswith("unfreeze_policy"):
 			self.policy_frozen = False
+			self.exploration_rate = self.dqn.exploration_rate
 			return "The policy was unfreezed."
 
 		if inMessage.startswith("save_model"):
 			if self.populating_phase is False:
 				self.dqn.save()
 			return "The model was saved."
-
-if __name__ == "__main__":
-	AgentLoader.loadAgent(dqn_agent())
