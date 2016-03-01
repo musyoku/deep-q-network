@@ -84,7 +84,6 @@ class Agent(RLGlueAgent):
 			image.save(("state-%d.png" % h))
 
 	def learn(self, reward, epsode_ends=False):
-		self.populating_phase = False
 		if self.policy_frozen: # Evaluation phase
 			self.exploration_rate = 0.05
 		else: # Learning phase
@@ -97,6 +96,7 @@ class Agent(RLGlueAgent):
 					# Copy batchnorm statistics to target
 					self.dqn.update_target()
 			else:
+				self.populating_phase = False
 				self.dqn.decrease_exploration_rate()
 			self.exploration_rate = self.dqn.exploration_rate
 
@@ -183,7 +183,8 @@ class Agent(RLGlueAgent):
 			return "The policy was unfreezed."
 
 		if inMessage.startswith("save_model"):
-			self.dqn.save()
+			if self.populating_phase is False:
+				self.dqn.save()
 			return "The model was saved."
 
 if __name__ == "__main__":

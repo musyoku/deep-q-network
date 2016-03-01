@@ -185,8 +185,7 @@ class DQN:
 
 		# Generate target
 		max_target_q = self.compute_target_q_variable(next_state, test=test)
-		max_target_q = list(map(xp.max, max_target_q.data))
-		max_target_q = xp.asanyarray(max_target_q, dtype=xp.float32)
+		max_target_q = xp.amax(max_target_q.data, axis=1)
 
 		# Initialize target signal
 		# 教師信号を現在のQ値で初期化
@@ -210,15 +209,14 @@ class DQN:
 		loss = target - q
 		loss *= loss
 
-		# loss is a one-hot vector in which non-zero element(= loss signal) corresponds to the taken action.
+		# loss is a one-hot vector in which the non-zero element(= loss signal) corresponds to the taken action.
 		# lossは実際にとった行動に対してのみ誤差を考え、それ以外の行動に対しては誤差が0となるone-hotなベクトルです。
 
-		# Clip the error to be between -1 and 1. In order to avoid division by zero we add 1e-5.
+		# Clip the error to be between -1 and 1.
 		# 1を超えるものはすべて1にする。（-1も同様）
-		loss /= (xp.maximum(loss.data, xp.ones(loss.data.shape, dtype=xp.float32)) + 1e-5)
+		loss /= (xp.maximum(loss.data, xp.ones(loss.data.shape, dtype=xp.float32)))
 
-		zero = Variable(xp.zeros(loss.data.shape, dtype=xp.float32))
-		loss = F.mean_squared_error(loss, zero)
+		loss = F.sum(loss) / n_batch
 		return loss, q
 
 	def replay_experience(self):

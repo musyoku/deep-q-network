@@ -22,7 +22,7 @@ def run_episode(learning=True):
 
     if learning:
         learned_episode += 1
-        print "Episode:", learned_episode, "total_steps:", total_steps, "total_reward:", total_reward, "time:", "%d%s" % (int(elapsed_time / 60), "min"),  "total_time:", "%d%s" % (int(total_time / 60), "min")
+        print "Episode:", learned_episode, "total_steps:", total_steps, "total_reward:", total_reward, "time:", int(elapsed_time), "sec",  "total_time:", int(total_time / 60), "min"
     else:
         print "Evaluation:", learned_episode, "total_steps:", total_steps, "total_reward:", total_reward
 
@@ -39,7 +39,7 @@ while learned_episode < max_episode:
         RLGlue.RL_agent_message("unfreeze_policy")
         run_episode(learning=True)
 
-    if learned_episode % 10 == 0:
+    if learned_episode % 100 == 0:
         print "Saving the model..."
         RLGlue.RL_agent_message("save_model")
 
