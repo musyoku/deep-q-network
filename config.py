@@ -152,13 +152,13 @@ config.rl_no_op_max = 30
 ## 要素の数がそのままレイヤー数になります。
 ## 入力側から出力側に向かって設定してください。
 ## レイヤーを通過するたび出力マップサイズは1/strideに縮小されるので、レイヤー数を増やしすぎると出力マップサイズが0になってしまうことに注意が必要です。
-config.q_conv_hidden_channels = [32, 64, 64, 64]
+config.q_conv_hidden_channels = [32, 64, 64]
 
 ## The list of stride for each hidden convolutional layer (input side -> output side)
-config.q_conv_strides = [2, 2, 2, 2]
+config.q_conv_strides = [4, 2, 1]
 
 ## The list of filter size of each convolutional layer (input side -> output side)
-config.q_conv_filter_sizes = [4, 4, 4, 4]
+config.q_conv_filter_sizes = [8, 4, 3]
 
 ## See activations.py
 config.q_conv_activation_function = "elu"
@@ -174,7 +174,7 @@ config.q_conv_apply_batchnorm_to_input = False
 ## It will be ignored when you eliminate the fully connected layer.
 ## 畳み込み層の最終的な出力マップをベクトルへ変換するときの次元数です。このベクトルは全結合層へ入力されます。
 ## 全結合層を使わない場合は無視されます。
-config.q_conv_output_vector_dimension = 1000
+config.q_conv_output_vector_dimension = 512
 
 ## "global_average_pooling" or "fully_connection"
 ## Specify how to convert the output feature maps to vector
@@ -185,11 +185,9 @@ config.q_conv_output_projection_type = "fully_connection"
 ## The number of units for each fully connected layer.
 ## These are placed on top of the convolutional network.
 ## Set [] if you want to eliminate fully connected layers. It is OK because convolutinal network outputs a vector.
-## Note: There is the trend towards eliminating fully connected layers to avoid overfitting.
 ## 畳み込み層を接続する全結合層のユニット数を入力側から出力側に向かって並べてください。
 ## []を指定すれば全結合層を削除できます。
-## 最近の畳み込みニューラルネットは過学習を避けるために全結合層を使わない傾向があるようです。
-config.q_fc_hidden_units = [512, 256, 64]
+config.q_fc_hidden_units = [256, 128]
 
 ## See activations.py
 config.q_fc_activation_function = "elu"

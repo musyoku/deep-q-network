@@ -7,25 +7,27 @@ max_episode = 10000
 total_episode = 0
 learned_episode = 0
 total_time = 0
+total_steps = 0
 time_steps_per_epoch = 50000
 
 
 def run_episode(learning=True):
-    global total_episode, learned_episode, total_time
+    global total_episode, learned_episode, total_time, total_steps
     start_time = time.time()
     RLGlue.RL_episode(0)
-    total_steps = RLGlue.RL_num_steps()
+    num_steps = RLGlue.RL_num_steps()
     total_reward = RLGlue.RL_return()
 
+    total_steps += num_steps
     total_episode += 1
     elapsed_time = time.time() - start_time
     total_time += elapsed_time
 
     if learning:
         learned_episode += 1
-        print "Episode:", learned_episode, "epoch:", int(total_steps / time_steps_per_epoch), "total_steps:", total_steps, "total_reward:", total_reward, "time:", int(elapsed_time), "sec",  "total_time:", int(total_time / 60), "min"
+        print "Episode:", learned_episode, "epoch:", int(total_steps / time_steps_per_epoch), "num_steps:", num_steps, "total_reward:", total_reward, "time:", int(elapsed_time), "sec",  "total_time:", int(total_time / 60), "min"
     else:
-        print "Evaluation:", learned_episode, "total_steps:", total_steps, "total_reward:", total_reward
+        print "Evaluation:", learned_episode, "num_steps:", num_steps, "total_reward:", total_reward
 
 
 RLGlue.RL_init()

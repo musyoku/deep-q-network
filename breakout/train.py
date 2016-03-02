@@ -13,20 +13,17 @@ from agent import Agent
 config.apply_batchnorm = True
 config.ale_actions = [4, 3, 1, 0]
 config.ale_screen_size = [210, 160]
-config.ale_scaled_screen_size = [86, 86]
+config.ale_scaled_screen_size = [84, 84]
 # config.ale_screen_channels = 3
 config.rl_replay_memory_size = 5 * 10 ** 4
 config.rl_target_network_update_frequency = 10 ** 3 * 2
 config.rl_replay_start_size = 10 ** 4
-config.rl_final_exploration_frame = 4 * 10 ** 5
-config.q_conv_hidden_channels = [128, 256, 512]
-config.q_conv_strides = [2, 2, 2]
-config.q_conv_filter_sizes = [4, 4, 4]
-config.q_conv_output_vector_dimension = 2000
-config.q_fc_hidden_units = [2000, 1000, 500]
-
-# Eliminate fully connected layers
-# config.q_fc_hidden_units = []
+config.rl_final_exploration_frame = 2 * 10 ** 5
+config.q_conv_hidden_channels = [32, 64, 64]
+config.q_conv_strides = [4, 2, 1]
+config.q_conv_filter_sizes = [8, 4, 3]
+config.q_conv_output_vector_dimension = 512
+config.q_fc_hidden_units = [256, 128]
 
 # Override agent
 class BreakoutAgent(Agent):
@@ -41,7 +38,7 @@ class BreakoutAgent(Agent):
 			# RGB
 			observation = np.asarray(observation.intArray[128:], dtype=np.uint8).reshape((screen_width, screen_height, 3))
 			# Remove the score area from image
-			observation = observation[93:,6:-6,:]
+			# observation = observation[93:,6:-6,:]
 			observation = spm.imresize(observation, (new_height, new_width))
 			# Clip the pixel value to be between 0 and 1
 			observation = observation.transpose(2, 0, 1) / 255.0
@@ -50,7 +47,7 @@ class BreakoutAgent(Agent):
 			if config.ale_screen_channels == 3:
 				raise Exception("You forgot to add --send_rgb option when you run ALE.")
 			observation = np.asarray(observation.intArray[128:]).reshape((screen_width, screen_height))
-			observation = observation[93:,6:-6]
+			# observation = observation[93:,6:-6]
 			observation = spm.imresize(observation, (new_height, new_width))
 			# Clip the pixel value to be between 0 and 1
 			observation = observation.reshape((1, new_height, new_width)) / 255.0
