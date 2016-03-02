@@ -14,7 +14,6 @@ class Agent(RLGlueAgent):
 		self.last_action = Action()
 		self.time_step = 0
 		self.total_time_step = 0
-		self.time_steps_per_epoch = 50000
 		self.episode_step = 0
 		self.populating_phase = False
 
