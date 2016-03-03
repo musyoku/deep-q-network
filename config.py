@@ -124,6 +124,7 @@ config.rl_agent_history_length = 4
 
 ## This value must be 1 or more 
 ## Original Nature Letter: 4 (= config.rl_action_repeat * --frame_skip(We use a value of 4 when we run the ALE))
+## この値を大きくするとエージェントはゆったり動くようになります
 config.rl_action_repeat = 1
 
 config.rl_minibatch_size = 32

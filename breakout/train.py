@@ -14,44 +14,17 @@ config.apply_batchnorm = True
 config.ale_actions = [4, 3, 1, 0]
 config.ale_screen_size = [210, 160]
 config.ale_scaled_screen_size = [84, 84]
-# config.ale_screen_channels = 3
 config.rl_replay_memory_size = 5 * 10 ** 4
-config.rl_target_network_update_frequency = 10 ** 3 * 2
 config.rl_replay_start_size = 10 ** 4
-config.rl_final_exploration_frame = 2 * 10 ** 5
+config.rl_action_repeat = 4
 config.q_conv_hidden_channels = [32, 64, 64]
 config.q_conv_strides = [4, 2, 1]
 config.q_conv_filter_sizes = [8, 4, 3]
-config.q_conv_output_vector_dimension = 512
-config.q_fc_hidden_units = [256, 128]
+config.q_conv_output_vector_dimension = 1024
+config.q_fc_hidden_units = [512, 256]
 
 # Override agent
 class BreakoutAgent(Agent):
-	def scale_screen(self, observation):
-		screen_width = config.ale_screen_size[0]
-		screen_height = config.ale_screen_size[1]
-		new_width = config.ale_scaled_screen_size[0]
-		new_height = config.ale_scaled_screen_size[1]
-		if len(observation.intArray) == 100928: 
-			if config.ale_screen_channels == 1:
-				raise Exception("You forgot to set config.ale_screen_channels to 3.")
-			# RGB
-			observation = np.asarray(observation.intArray[128:], dtype=np.uint8).reshape((screen_width, screen_height, 3))
-			# Remove the score area from image
-			# observation = observation[93:,6:-6,:]
-			observation = spm.imresize(observation, (new_height, new_width))
-			# Clip the pixel value to be between 0 and 1
-			observation = observation.transpose(2, 0, 1) / 255.0
-		else:
-			# Greyscale
-			if config.ale_screen_channels == 3:
-				raise Exception("You forgot to add --send_rgb option when you run ALE.")
-			observation = np.asarray(observation.intArray[128:]).reshape((screen_width, screen_height))
-			# observation = observation[93:,6:-6]
-			observation = spm.imresize(observation, (new_height, new_width))
-			# Clip the pixel value to be between 0 and 1
-			observation = observation.reshape((1, new_height, new_width)) / 255.0
-
-		return observation
+	pass
 
 AgentLoader.loadAgent(BreakoutAgent())

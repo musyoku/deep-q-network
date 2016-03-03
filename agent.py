@@ -26,20 +26,23 @@ class Agent(RLGlueAgent):
 		self.state = np.zeros((config.rl_agent_history_length, config.ale_screen_channels, config.ale_scaled_screen_size[1], config.ale_scaled_screen_size[0]), dtype=np.float32)
 		self.exploration_rate = self.dqn.exploration_rate
 		self.exploration_rate_for_evaluation = 0.05
+		self.last_observed_screen = None
 
-	def scale_screen(self, observation):
+	def preprocess_screen(self, observation):
 		screen_width = config.ale_screen_size[0]
 		screen_height = config.ale_screen_size[1]
 		new_width = config.ale_scaled_screen_size[0]
 		new_height = config.ale_scaled_screen_size[1]
 		if len(observation.intArray) == 100928: 
-			if config.ale_screen_channels == 1:
-				raise Exception("You forgot to set config.ale_screen_channels to 3.")
-			# RGB
 			observation = np.asarray(observation.intArray[128:], dtype=np.uint8).reshape((screen_width, screen_height, 3))
 			observation = spm.imresize(observation, (new_height, new_width))
 			# Clip the pixel value to be between 0 and 1
+			if config.ale_screen_channels == 1:
+				# Convert RGB to Luminance
+				observation = np.dot(observation[:,:,:], [0.299, 0.587, 0.114])
+				observation = observation.reshape((new_height, new_width, 1))
 			observation = observation.transpose(2, 0, 1) / 255.0
+			observation /= (np.max(observation) + 1e-5)
 		else:
 			# Greyscale
 			if config.ale_screen_channels == 3:
@@ -48,8 +51,14 @@ class Agent(RLGlueAgent):
 			observation = spm.imresize(observation, (new_height, new_width))
 			# Clip the pixel value to be between 0 and 1
 			observation = observation.reshape((1, new_height, new_width)) / 255.0
+			observation /= (np.max(observation) + 1e-5)
 
-		return observation
+		observed_screen = observation
+		if self.last_observed_screen is not None:
+			observed_screen = np.maximum(observation, self.last_observed_screen)
+
+		self.last_observed_screen = observation
+		return observed_screen
 
 	def agent_init(self, taskSpecString):
 		pass
@@ -111,7 +120,7 @@ class Agent(RLGlueAgent):
 			print int(self.total_time_step / 1000), "K"
 		else:
 			print self.total_time_step
-		observed_screen = self.scale_screen(observation)
+		observed_screen = self.preprocess_screen(observation)
 		self.state[0] = observed_screen
 
 		return_action = Action()
@@ -120,12 +129,11 @@ class Agent(RLGlueAgent):
 
 		self.last_action = copy.deepcopy(return_action)
 		self.last_state = self.state.copy()
-		self.last_observation = observed_screen
 
 		return return_action
 
 	def agent_step(self, reward, observation):
-		observed_screen = self.scale_screen(observation)
+		observed_screen = self.preprocess_screen(observation)
 		self.state = np.asanyarray([self.state[1], self.state[2], self.state[3], observed_screen], dtype=np.float32)
 
 
@@ -147,8 +155,6 @@ class Agent(RLGlueAgent):
 		# [Optional]
 		## Visualizing the results
 		self.dump_result(reward, q_max, q_min)
-
-		self.last_observation = observed_screen
 
 		if self.policy_frozen is False:
 			self.last_action = copy.deepcopy(return_action)
