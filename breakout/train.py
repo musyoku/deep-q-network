@@ -14,14 +14,13 @@ config.apply_batchnorm = True
 config.ale_actions = [4, 3, 1, 0]
 config.ale_screen_size = [210, 160]
 config.ale_scaled_screen_size = [84, 84]
-config.rl_replay_memory_size = 5 * 10 ** 4
+config.rl_replay_memory_size = 10 ** 5
 config.rl_replay_start_size = 10 ** 4
-config.rl_action_repeat = 4
 config.q_conv_hidden_channels = [32, 64, 64]
 config.q_conv_strides = [4, 2, 1]
 config.q_conv_filter_sizes = [8, 4, 3]
-config.q_conv_output_vector_dimension = 1024
-config.q_fc_hidden_units = [512, 256]
+config.q_conv_output_vector_dimension = 512
+config.q_fc_hidden_units = [256, 128]
 
 # Override agent
 class BreakoutAgent(Agent):

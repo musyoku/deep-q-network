@@ -1,3 +1,6 @@
-*.pyc
-*.png
-*.model
+# ignore all
+*
+*/
+
+# allow any
+!*.py

@@ -140,7 +140,6 @@ config.rl_final_exploration_frame = 10 ** 6
 config.rl_replay_start_size = 5 * 10 ** 4
 config.rl_no_op_max = 30
 
-
 # Q-Network
 ## The list of the number of channel for each hidden convolutional layer (input side -> output side)
 ## The number of elements is the number of hidden layers.
