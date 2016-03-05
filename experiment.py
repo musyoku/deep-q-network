@@ -12,7 +12,7 @@ learned_steps = 0
 total_time = 0
 time_steps_per_epoch = 5 * 10 ** 4
 highscore = 0
-saving_freq = 1000
+saving_freq = 100
 
 # evaluation
 num_episode_between_evaluations = 100
@@ -35,7 +35,7 @@ except:
 	pass
 
 # csv
-csv_writing_freq = 10
+csv_writing_freq = 100
 csv_episode = []
 csv_training_highscore = []
 csv_evaluation = []
@@ -72,7 +72,7 @@ def plot_evaluation_episode_reward():
 		params = csv_evaluation[n]
 		episodes.append(params[0])
 		average_scores.append(params[1])
-		median_scores.append(params[1])
+		median_scores.append(params[2])
 	pylab.plot(episodes, average_scores, sns.xkcd_rgb["windows blue"], lw=2)
 	pylab.xlabel("episodes")
 	pylab.ylabel("average score")
