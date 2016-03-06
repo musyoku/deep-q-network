@@ -79,8 +79,10 @@ class Agent(RLGlueAgent):
 				print "min:", q_min
 
 
-	def dump_state(self):
-		state = self.reshape_state_to_conv_input(self.state)
+	def dump_state(self, state=None, prefix=""):
+		if state is None:
+			state = self.state
+		state = self.reshape_state_to_conv_input(state)
 		for h in xrange(config.rl_agent_history_length):
 			start = h * config.ale_screen_channels
 			end = start + config.ale_screen_channels
@@ -91,19 +93,20 @@ class Agent(RLGlueAgent):
 				image = image.transpose(1, 2, 0)
 			image = np.uint8(image * 255.0)
 			image = Image.fromarray(image)
-			image.save(("state-%d.png" % h))
+			image.save(("%sstate-%d.png" % (prefix, h)))
 
 	def learn(self, reward, epsode_ends=False):
 		if self.policy_frozen is False:
+
 			self.dqn.store_transition_in_replay_memory(self.reshape_state_to_conv_input(self.last_state), self.last_action.intArray[0], reward, self.reshape_state_to_conv_input(self.state), epsode_ends)
 			if self.total_time_step <= config.rl_replay_start_size:
 				# A uniform random policy is run for 'replay_start_size' frames before learning starts
 				# 経験を積むためランダムに動き回るらしい。
 				print "Initial exploration before learning starts:", "%d/%d" % (self.total_time_step, config.rl_replay_start_size)
 				self.populating_phase = True
+				self.exploration_rate = config.rl_initial_exploration
 			else:
 				self.populating_phase = False
-				
 				self.dqn.decrease_exploration_rate()
 				self.exploration_rate = self.dqn.exploration_rate
 
@@ -142,7 +145,7 @@ class Agent(RLGlueAgent):
 			self.dump_state()
 
 		self.learn(reward)
-
+		
 		return_action = Action()
 		q_max = None
 		q_min = None

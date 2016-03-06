@@ -165,11 +165,11 @@ class DQN:
 
 	def store_transition_in_replay_memory(self, state, action, reward, next_state, episode_ends):
 		index = self.total_replay_memory % config.rl_replay_memory_size
-		self.replay_memory[0][index] = state
+		self.replay_memory[0][index] = state[0]
 		self.replay_memory[1][index] = action
 		self.replay_memory[2][index] = reward
 		if episode_ends is False:
-			self.replay_memory[3][index] = next_state
+			self.replay_memory[3][index] = next_state[0]
 		self.replay_memory[4][index] = episode_ends
 		self.total_replay_memory += 1
 
@@ -270,6 +270,7 @@ class DQN:
 		self.target_conv = copy.deepcopy(self.conv)
 		if self.fcl_eliminated is False:
 			self.target_fc = copy.deepcopy(self.fc)
+
 
 	def get_action_with_index(self, i):
 		return config.ale_actions[i]
