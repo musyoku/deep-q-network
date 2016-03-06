@@ -141,8 +141,8 @@ class Agent(RLGlueAgent):
 
 
 		########################### DEBUG ###############################
-		if self.total_time_step % 500 == 0 and self.total_time_step != 0:
-			self.dump_state()
+		# if self.total_time_step % 500 == 0 and self.total_time_step != 0:
+		# 	self.dump_state()
 
 		self.learn(reward)
 		
@@ -155,8 +155,6 @@ class Agent(RLGlueAgent):
 			action = self.last_action.intArray[0]
 		return_action.intArray = [action]
 
-		# [Optional]
-		## Visualizing the results
 		self.dump_result(reward, q_max, q_min)
 
 		if self.policy_frozen is False:
