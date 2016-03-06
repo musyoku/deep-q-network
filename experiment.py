@@ -147,6 +147,7 @@ while learned_episode < max_episode:
 			csv_evaluation.append([learned_episode, np.mean(evaluation_scores), np.median(evaluation_scores), total_minutes, epoch])
 			RLGlue.RL_agent_message("unfreeze_policy")
 			run_episode(training=True)
+		continue
 	else:
 		run_episode(training=True)
 
