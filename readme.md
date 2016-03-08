@@ -53,12 +53,10 @@ cd /home/your_name/ALE
 
 実験に用いたコンピュータのスペックは以下の通りです。
 
-
-|:--------------|-----------------:|
-| OS            | Ubuntu 14.04 LTS | 
-| CPU           | Core i7          | 
-| RAM           | 16GB             | 
-| GPU           | GTX 970M 6GB     | 
+| OS            | Ubuntu 14.04 LTS |
+| CPU           | Core i7          |
+| RAM           | 16GB             |
+| GPU           | GTX 970M 6GB     |
 
 ## Atari Breakout
 
