@@ -1,6 +1,6 @@
-# Chainer implementation of Deep Q-Network(DQN) 
+# Introduction
 
-This package provides a Chainer implementation of DQN described in the following papers:
+This package provides a Chainer implementation of Deep Q-Network(DQN) described in the following papers:
 
 - [Playing Atari with Deep Reinforcement Learning](http://arxiv.org/abs/1312.5602)
 - [Human-level control through deep reinforcement learning](http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html)
