@@ -22,30 +22,49 @@ e.g. Atari Breakout
 
 Open 4 terminal windows and run the following commands on each terminal: 
 
+Terminal #1
+
 ```
 rl_glue
 ```
+
+Terminal #2
 
 ```
 cd path_to_deep-q-network
 python experiment.py --csv_dir breakout/csv --plot_dir breakout/plot
 ```
 
+Terminal #3
+
 ```
 cd path_to_deep-q-network/breakout
 python train.py
 ```
+
+Terminal #4
 
 ```
 cd /home/your_name/ALE
 ./ale -game_controller rlglue -use_starting_actions true -random_seed time -display_screen true -frame_skip 4 -send_rgb true /path_to_rom/breakout.bin
 ```
 
-# Atari Breakout
+# Experiments
 
-## Training
+実験に用いたコンピュータのスペックは以下の通りです。
+
+| OS            | Ubuntu 14.04 LTS | 
+| CPU           | Core i7          | 
+| RAM           | 16GB             | 
+| GPU           | GTX 970M 6GB     | 
+
+## Atari Breakout
+
+### Training
 
 We trained DQN for a total of 42 hours (8200 episodes, 93 epochs, 4670K frames).
+
+Tested on:
 
 Score:
 
@@ -55,12 +74,12 @@ Highscore:
 
 ![Breakout episode-highscore](https://raw.githubusercontent.com/musyoku/musyoku.github.io/master/images/post/2016-03-06/breakout_training_episode_highscore.png)
 
-## Evaluation
+### Evaluation
 
 Average score:
 
 ![Breakout episode-highscore](https://raw.githubusercontent.com/musyoku/musyoku.github.io/master/images/post/2016-03-06/breakout_evaluation_episode_average_reward.png)
 
-# Atari Pong
+## Atari Pong
 
 Coming soon!
