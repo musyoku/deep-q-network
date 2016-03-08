@@ -64,6 +64,18 @@ cd /home/your_name/ALE
 
 ![Breakout](http://musyoku.github.io/images/post/2016-03-06/breakout_result.gif)
 
+### Preprocessing
+
+We extract the luminance from the RGB frame adn rescale it to 84x84.
+
+Then we stack the 4 most recent frames to produce the input to the DQN.
+
+e.g. 
+![frame-0](http://musyoku.github.io/images/post/2016-03-06/breakout_state0.png)
+![frame-1](http://musyoku.github.io/images/post/2016-03-06/breakout_state1.png)
+![frame-2](http://musyoku.github.io/images/post/2016-03-06/breakout_state2.png)
+![frame-3](http://musyoku.github.io/images/post/2016-03-06/breakout_state3.png)
+
 ### Training
 
 We trained DQN for a total of 42 hours (8200 episodes, 93 epochs, 4670K frames).
