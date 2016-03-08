@@ -66,7 +66,7 @@ cd /home/your_name/ALE
 
 ### Preprocessing
 
-We extract the luminance from the RGB frame adn rescale it to 84x84.
+We extract the luminance from the RGB frame and rescale it to 84x84.
 
 Then we stack the 4 most recent frames to produce the input to the DQN.
 
