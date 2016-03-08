@@ -9,7 +9,7 @@ Papers:
 - [Arcade Learning Environment（ALE）](http://www.arcadelearningenvironment.org/)
 - [RL-Glue](https://code.google.com/archive/p/rl-glue-ext/wikis/RLGlueCore.wiki)
 - [PL-Glue Python codec](https://sites.google.com/a/rl-community.org/rl-glue/Home/Extensions/python-codec)
-- [Atari 2600 VCS ROM Collection](http://www.arcadelearningenvironment.org/)
+- [Atari 2600 VCS ROM Collection](http://www.atarimania.com/rom_collection_archive_atari_2600_roms.html)
 - Chainer 1.6+
 - Seaborn
 - Pandas
@@ -71,6 +71,7 @@ We extract the luminance from the RGB frame adn rescale it to 84x84.
 Then we stack the 4 most recent frames to produce the input to the DQN.
 
 e.g. 
+
 ![frame-0](http://musyoku.github.io/images/post/2016-03-06/breakout_state0.png)
 ![frame-1](http://musyoku.github.io/images/post/2016-03-06/breakout_state1.png)
 ![frame-2](http://musyoku.github.io/images/post/2016-03-06/breakout_state2.png)
