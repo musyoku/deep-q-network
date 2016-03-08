@@ -16,7 +16,7 @@ Papers:
 
 環境構築に関しては [DQN-chainerリポジトリを動かすだけ](http://vaaaaaanquish.hatenablog.com/entry/2015/12/11/215417) が参考になります。
 
-## How to run
+## Running
 
 e.g. Atari Breakout
 

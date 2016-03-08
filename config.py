@@ -115,7 +115,7 @@ config.ale_screen_channels = 1
 config.ale_actions = [0, 3, 4]
 
 # Reinforcment Learning
-## These hyperparameters are based on the original Nature Letter.
+## These hyperparameters are based on the original Nature paper.
 ## For more details see following:
 ## [Human-level control through deep reinforcement learning](http://www.nature.com/nature/journal/v518/n7540/abs/nature14236.html)
 
@@ -123,7 +123,7 @@ config.ale_actions = [0, 3, 4]
 config.rl_agent_history_length = 4
 
 ## This value must be 1 or more 
-## Original Nature Letter: 4 (= config.rl_action_repeat * --frame_skip(We use a value of 4 when we run the ALE))
+## Original Nature paper: 4 (= config.rl_action_repeat * --frame_skip(We use a value of 4 when we run the ALE))
 ## この値を大きくするとエージェントはゆったり動くようになります
 config.rl_action_repeat = 1
 
