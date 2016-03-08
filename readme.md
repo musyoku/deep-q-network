@@ -70,17 +70,17 @@ We trained DQN for a total of 42 hours (8200 episodes, 93 epochs, 4670K frames).
 
 本当は10000プレイさせたかったのですが突然コンピュータがシャットダウンしてしまったため中途半端な結果になってしましました。
 
-Score:
+#### Score:
 
 ![Breakout episode-score](http://musyoku.github.io/images/post/2016-03-06/breakout_episode_reward.png)
 
-Highscore:
+#### Highscore:
 
 ![Breakout episode-highscore](http://musyoku.github.io/images/post/2016-03-06/breakout_training_episode_highscore.png)
 
 ### Evaluation
 
-Average score:
+#### Average score:
 
 ![Breakout episode-average](http://musyoku.github.io/images/post/2016-03-06/breakout_evaluation_episode_average_reward.png)
 
