@@ -5,6 +5,8 @@ This package provides a Chainer implementation of Deep Q-Network(DQN) described 
 - [Playing Atari with Deep Reinforcement Learning](http://arxiv.org/abs/1312.5602)
 - [Human-level control through deep reinforcement learning](http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html)
 
+[この記事](http://musyoku.github.io/2016/03/06/human-level-control-through-deep-reinforcement-learning/)で実装したコードです。
+
 ## Requirements
 
 - [Arcade Learning Environment（ALE）](http://www.arcadelearningenvironment.org/)
