@@ -139,7 +139,6 @@ class Agent(RLGlueAgent):
 		observed_screen = self.preprocess_screen(observation)
 		self.state = np.asanyarray([self.state[1], self.state[2], self.state[3], observed_screen], dtype=np.float32)
 
-
 		########################### DEBUG ###############################
 		# if self.total_time_step % 500 == 0 and self.total_time_step != 0:
 		# 	self.dump_state()
