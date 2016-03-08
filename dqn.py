@@ -235,7 +235,7 @@ class DQN:
 		action = np.empty(shape_action, dtype=np.uint8)
 		reward = np.empty(shape_action, dtype=np.int8)
 		next_state = np.empty(shape_state, dtype=np.float32)
-		episode_ends = np.empty(shape_action, dtype=np.uint8)
+		episode_ends = np.empty(shape_action, dtype=np.bool)
 		for i in xrange(config.rl_minibatch_size):
 			state[i] = self.replay_memory[0][replay_index[i]]
 			action[i] = self.replay_memory[1][replay_index[i]]
