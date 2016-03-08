@@ -16,13 +16,6 @@ Papers:
 
 環境構築に関しては [DQN-chainerリポジトリを動かすだけ](http://vaaaaaanquish.hatenablog.com/entry/2015/12/11/215417) が参考になります。
 
-## Summery
-
-We 
-- replace any pooling layers with strided convolutions.
-- support Batch Normalization.
-- supoort variable layers and units.
-
 ## How to run
 
 e.g. Atari Breakout
@@ -55,16 +48,19 @@ cd /home/your_name/ALE
 We trained DQN for a total of 42 hours (8200 episodes, 93 epochs, 4670K frames).
 
 Score:
-![Breakout episode-score](http://musyoku.github.io/images/post/2016-03-06/breakout_episode_reward.png)
+
+![Breakout episode-score](https://raw.githubusercontent.com/musyoku/musyoku.github.io/master/images/post/2016-03-06/breakout_episode_reward.png)
 
 Highscore:
-![Breakout episode-highscore](http://musyoku.github.io/images/post/2016-03-06/breakout_training_episode_highscore.png)
+
+![Breakout episode-highscore](https://raw.githubusercontent.com/musyoku/musyoku.github.io/master/images/post/2016-03-06/breakout_training_episode_highscore.png)
 
 ## Evaluation
 
 Average score:
-![Breakout episode-highscore](http://musyoku.github.io/images/post/2016-03-06/breakout_evaluation_episode_average_reward.png)
 
-Coming Soon!
+![Breakout episode-highscore](https://raw.githubusercontent.com/musyoku/musyoku.github.io/master/images/post/2016-03-06/breakout_evaluation_episode_average_reward.png)
 
-![Episode-4560](http://musyoku.github.io/images/post/2016-03-06/playing-breakout-ep4560.gif)
+# Atari Pong
+
+Coming soon!
