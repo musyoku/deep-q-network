@@ -108,3 +108,19 @@ We trained DQN for a total of 42 hours (8200 episodes, 93 epochs, 4670K frames).
 ![frame-1](http://musyoku.github.io/images/post/2016-03-06/pong_state1.png)
 ![frame-2](http://musyoku.github.io/images/post/2016-03-06/pong_state2.png)
 ![frame-3](http://musyoku.github.io/images/post/2016-03-06/pong_state3.png)
+
+We trained DQN for a total of 50 hours (1500 episodes, 96 epochs, 4849K frames).
+
+#### Score:
+
+![Pong episode-score](http://musyoku.github.io/images/post/2016-03-06/pong_episode_reward.png)
+
+#### Highscore:
+
+![Pong episode-highscore](http://musyoku.github.io/images/post/2016-03-06/pong_training_episode_highscore.png)
+
+### Evaluation
+
+#### Average score:
+
+![Pong episode-average](http://musyoku.github.io/images/post/2016-03-06/pong_evaluation_episode_average_reward.png)
