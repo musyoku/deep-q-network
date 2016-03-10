@@ -49,7 +49,7 @@ sns.set_context("poster")
 def plot_episode_reward():
 	pylab.clf()
 	sns.set_context("poster")
-	pylab.plot(0, 0)
+	# pylab.plot(0, 0)
 	episodes = [0]
 	scores = [0]
 	for n in xrange(len(csv_episode)):
@@ -64,7 +64,7 @@ def plot_episode_reward():
 def plot_evaluation_episode_reward():
 	pylab.clf()
 	sns.set_context("poster")
-	pylab.plot(0, 0)
+	# pylab.plot(0, 0)
 	episodes = [0]
 	average_scores = [0]
 	median_scores = [0]
@@ -79,7 +79,7 @@ def plot_evaluation_episode_reward():
 	pylab.savefig("%s/evaluation_episode_average_reward.png" % args.plot_dir)
 
 	pylab.clf()
-	pylab.plot(0, 0)
+	# pylab.plot(0, 0)
 	pylab.plot(episodes, median_scores, sns.xkcd_rgb["windows blue"], lw=2)
 	pylab.xlabel("episodes")
 	pylab.ylabel("median score")
@@ -88,7 +88,7 @@ def plot_evaluation_episode_reward():
 def plot_training_episode_highscore():
 	pylab.clf()
 	sns.set_context("poster")
-	pylab.plot(0, 0)
+	# pylab.plot(0, 0)
 	episodes = [0]
 	highscore = [0]
 	for n in xrange(len(csv_training_highscore)):

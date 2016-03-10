@@ -102,6 +102,8 @@ We trained DQN for a total of 42 hours (8200 episodes, 93 epochs, 4670K frames).
 
 ## Atari Pong
 
+![Pong](http://musyoku.github.io/images/post/2016-03-06/pong_result.gif)
+
 ### Preprocessing
 
 ![frame-0](http://musyoku.github.io/images/post/2016-03-06/pong_state0.png)
