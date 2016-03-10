@@ -10,7 +10,7 @@ from dqn import DQN
 from agent import Agent
 
 # Override config
-config.apply_batchnorm = True
+config.apply_batchnorm = False
 config.ale_actions = [4, 3, 1, 0]
 config.ale_screen_size = [210, 160]
 config.ale_scaled_screen_size = [84, 84]
