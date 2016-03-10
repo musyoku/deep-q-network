@@ -111,6 +111,8 @@ We trained DQN for a total of 42 hours (8200 episodes, 93 epochs, 4670K frames).
 ![frame-2](http://musyoku.github.io/images/post/2016-03-06/pong_state2.png)
 ![frame-3](http://musyoku.github.io/images/post/2016-03-06/pong_state3.png)
 
+### Training
+
 We trained DQN for a total of 50 hours (1500 episodes, 96 epochs, 4849K frames).
 
 #### Score:
