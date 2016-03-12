@@ -1,183 +1,197 @@
 # -*- coding: utf-8 -*-
-import math, pylab, time, argparse, os
-import pandas as pd
+import copy
+import scipy.misc as spm
 import numpy as np
-import seaborn as sns
-import rlglue.RLGlue as RLGlue
+from rlglue.agent.Agent import Agent as RLGlueAgent
+from rlglue.types import Action
+from rlglue.utils import TaskSpecVRLGLUE3
+from dqn import DQN
+from config import config
+from PIL import Image
 
-max_episode = 10 ** 5
-total_episode = 0
-learned_episode = 0
-learned_steps = 0
-total_time = 0
-time_steps_per_epoch = 5 * 10 ** 4
-highscore = 0
-saving_freq = 100
+class Agent(RLGlueAgent):
+	def __init__(self):
+		self.last_action = 0
+		self.time_step = 0
+		self.total_time_step = 0
+		self.episode_step = 0
+		self.populating_phase = False
 
-# evaluation
-num_episode_between_evaluations = 100
-is_evaluation_phase = False
-num_finished_eval_episode = 0
-sum_evaluation_scores = 0
-num_episode_per_evaluation = 20
-evaluation_scores = np.zeros((num_episode_per_evaluation,), dtype=np.float64)
+		self.model_save_interval = 30
 
-# args
-parser = argparse.ArgumentParser()
-parser.add_argument("--csv_dir", type=str, default="csv")
-parser.add_argument("--plot_dir", type=str, default="plot")
-args = parser.parse_args()
+		# Switch learning phase / evaluation phase
+		self.policy_frozen = False
 
-try:
-	os.mkdir(args.plot_dir)
-	os.mkdir(args.csv_dir)
-except:
-	pass
+		self.dqn = DQN()
+		self.state = np.zeros((config.rl_agent_history_length, config.ale_screen_channels, config.ale_scaled_screen_size[1], config.ale_scaled_screen_size[0]), dtype=np.float32)
+		self.exploration_rate = self.dqn.exploration_rate
+		self.exploration_rate_for_evaluation = 0.05
+		self.last_observed_screen = None
 
-# csv
-csv_writing_freq = 100
-csv_episode = []
-csv_training_highscore = []
-csv_evaluation = []
-
-# plot
-plot_freq = csv_writing_freq
-sns.set_style("ticks")
-sns.set_style("whitegrid", {"grid.linestyle": "--"})
-sns.set_context("poster")
-
-def plot_episode_reward():
-	pylab.clf()
-	sns.set_context("poster")
-	# pylab.plot(0, 0)
-	episodes = [0]
-	scores = [0]
-	for n in xrange(len(csv_episode)):
-		params = csv_episode[n]
-		episodes.append(params[0])
-		scores.append(params[1])
-	pylab.plot(episodes, scores, sns.xkcd_rgb["windows blue"], lw=2)
-	pylab.xlabel("episodes")
-	pylab.ylabel("score")
-	pylab.savefig("%s/episode_reward.png" % args.plot_dir)
-
-def plot_evaluation_episode_reward():
-	pylab.clf()
-	sns.set_context("poster")
-	# pylab.plot(0, 0)
-	episodes = [0]
-	average_scores = [0]
-	median_scores = [0]
-	for n in xrange(len(csv_evaluation)):
-		params = csv_evaluation[n]
-		episodes.append(params[0])
-		average_scores.append(params[1])
-		median_scores.append(params[2])
-	pylab.plot(episodes, average_scores, sns.xkcd_rgb["windows blue"], lw=2)
-	pylab.xlabel("episodes")
-	pylab.ylabel("average score")
-	pylab.savefig("%s/evaluation_episode_average_reward.png" % args.plot_dir)
-
-	pylab.clf()
-	# pylab.plot(0, 0)
-	pylab.plot(episodes, median_scores, sns.xkcd_rgb["windows blue"], lw=2)
-	pylab.xlabel("episodes")
-	pylab.ylabel("median score")
-	pylab.savefig("%s/evaluation_episode_median_reward.png" % args.plot_dir)
-
-def plot_training_episode_highscore():
-	pylab.clf()
-	sns.set_context("poster")
-	# pylab.plot(0, 0)
-	episodes = [0]
-	highscore = [0]
-	for n in xrange(len(csv_training_highscore)):
-		params = csv_training_highscore[n]
-		episodes.append(params[0])
-		highscore.append(params[1])
-	pylab.plot(episodes, highscore, sns.xkcd_rgb["windows blue"], lw=2)
-	pylab.xlabel("episodes")
-	pylab.ylabel("highscore")
-	pylab.savefig("%s/training_episode_highscore.png" % args.plot_dir)
-
-
-def run_episode(training=True):
-	global total_episode, learned_episode, total_time, learned_steps, csv_episode, highscore, num_finished_eval_episode, evaluation_scores
-	start_time = time.time()
-	RLGlue.RL_episode(0)
-	num_steps = RLGlue.RL_num_steps()
-	total_reward = RLGlue.RL_return()
-	total_episode += 1
-	elapsed_time = time.time() - start_time
-	total_time += elapsed_time
-	epoch = int(learned_steps / time_steps_per_epoch)
-
-	if training:
-		learned_steps += num_steps
-		learned_episode += 1
-		sec = int(elapsed_time)
-		total_minutes = int(total_time / 60)
-		csv_episode.append([learned_episode, total_reward, num_steps, sec, total_minutes, epoch, learned_steps])
-		if total_reward > highscore:
-			highscore = total_reward
-			csv_training_highscore.append([learned_episode, highscore, total_minutes, epoch])
-		print "Episode:", learned_episode, "epoch:", epoch, "num_steps:", num_steps, "total_reward:", total_reward, "time:", sec, "sec",  "total_time:", total_minutes, "min"
-
-	return num_steps, total_reward
-
-
-RLGlue.RL_init()
-
-while learned_episode < max_episode:
-	epoch = int(learned_steps / time_steps_per_epoch)
-	total_minutes = int(total_time / 60)
-
-	if learned_episode % num_episode_between_evaluations == 0 and total_episode != 0:
-		if is_evaluation_phase is False:
-			print "Freezing the policy for evaluation."
-			RLGlue.RL_agent_message("freeze_policy")
-			num_finished_eval_episode = 0
-			is_evaluation_phase = True
-		num_steps, total_reward = run_episode(training=False)
-		evaluation_scores[num_finished_eval_episode] = total_reward
-		num_finished_eval_episode += 1
-		print "Evaluation (", num_finished_eval_episode, "/" , num_episode_per_evaluation, ") ::", "num_steps:", num_steps, "total_reward:", total_reward
-		if num_finished_eval_episode == num_episode_per_evaluation:
-			is_evaluation_phase = False
-			csv_evaluation.append([learned_episode, np.mean(evaluation_scores), np.median(evaluation_scores), total_minutes, epoch])
-			RLGlue.RL_agent_message("unfreeze_policy")
+	def preprocess_screen(self, observation):
+		screen_width = config.ale_screen_size[0]
+		screen_height = config.ale_screen_size[1]
+		new_width = config.ale_scaled_screen_size[0]
+		new_height = config.ale_scaled_screen_size[1]
+		if len(observation.intArray) == 100928: 
+			observation = np.asarray(observation.intArray[128:], dtype=np.uint8).reshape((screen_width, screen_height, 3))
+			observation = spm.imresize(observation, (new_height, new_width))
+			# Clip the pixel value to be between 0 and 1
+			if config.ale_screen_channels == 1:
+				# Convert RGB to Luminance
+				observation = np.dot(observation[:,:,:], [0.299, 0.587, 0.114])
+				observation = observation.reshape((new_height, new_width, 1))
+			observation = observation.transpose(2, 0, 1) / 255.0
+			observation /= (np.max(observation) + 1e-5)
 		else:
-			continue
+			# Greyscale
+			if config.ale_screen_channels == 3:
+				raise Exception("You forgot to add --send_rgb option when you run ALE.")
+			observation = np.asarray(observation.intArray[128:]).reshape((screen_width, screen_height))
+			observation = spm.imresize(observation, (new_height, new_width))
+			# Clip the pixel value to be between 0 and 1
+			observation = observation.reshape((1, new_height, new_width)) / 255.0
+			observation /= (np.max(observation) + 1e-5)
 
-	if learned_episode % saving_freq == 0 and learned_episode != 0:
-		print "Saving the model."
-		RLGlue.RL_agent_message("save_model")
+		observed_screen = observation
+		if self.last_observed_screen is not None:
+			observed_screen = np.maximum(observation, self.last_observed_screen)
 
-	if learned_episode % csv_writing_freq == 0 and learned_episode != 0:
-		print "Writing to csv files."
-		if len(csv_episode):
-			data = pd.DataFrame(csv_episode)
-			data.columns = ["episode", "reward", "num_steps", "sec", "total_minutes", "epoch", "total_steps"]
-			data.to_csv("%s/episode.csv" % args.csv_dir)
+		self.last_observed_screen = observation
+		return observed_screen
 
-		if len(csv_training_highscore):
-			data = pd.DataFrame(csv_training_highscore)
-			data.columns = ["episode", "highscore", "total_minutes", "epoch"]
-			data.to_csv("%s/training_highscore.csv" % args.csv_dir)
+	def agent_init(self, taskSpecString):
+		pass
 
-		if len(csv_evaluation) > 0:
-			data = pd.DataFrame(csv_evaluation)
-			data.columns = ["episode", "average", "median", "total_minutes", "epoch"]
-			data.to_csv("%s/evaluation.csv" % args.csv_dir)
+	def reshape_state_to_conv_input(self, state):
+		return state.reshape((1, config.rl_agent_history_length * config.ale_screen_channels, config.ale_scaled_screen_size[1], config.ale_scaled_screen_size[0]))
 
-	if learned_episode % plot_freq == 0 and learned_episode != 0:
-		print "Plotting the csv data."
-		plot_episode_reward()
-		plot_training_episode_highscore()
-		plot_evaluation_episode_reward()
+	def dump_result(self, reward, q_max=None, q_min=None):
+		if self.time_step % 50 == 0:
+			if self.policy_frozen is False:
+				print "time_step:", self.time_step,
+				
+			print "reward:", reward,
+			print "eps:", self.exploration_rate,
+			if q_min is None:
+				print ""
+			else:
+				print "Q ::",
+				print "max:", q_max,
+				print "min:", q_min
 
-	run_episode(training=True)
+	def dump_state(self, state=None, prefix=""):
+		if state is None:
+			state = self.state
+		state = self.reshape_state_to_conv_input(state)
+		for h in xrange(config.rl_agent_history_length):
+			start = h * config.ale_screen_channels
+			end = start + config.ale_screen_channels
+			image = state[0,start:end,:,:]
+			if config.ale_screen_channels == 1:
+				image = image.reshape((image.shape[1], image.shape[2]))
+			elif config.ale_screen_channels == 3:
+				image = image.transpose(1, 2, 0)
+			image = np.uint8(image * 255.0)
+			image = Image.fromarray(image)
+			image.save(("%sstate-%d.png" % (prefix, h)))
 
-RLGlue.RL_cleanup()
+	def learn(self, reward, epsode_ends=False):
+		if self.policy_frozen is False:
 
-print "Experiment has ended at episode", total_episode
+			self.dqn.store_transition_in_replay_memory(self.reshape_state_to_conv_input(self.last_state), self.last_action, reward, self.reshape_state_to_conv_input(self.state), epsode_ends)
+			if self.total_time_step <= config.rl_replay_start_size:
+				# A uniform random policy is run for 'replay_start_size' frames before learning starts
+				# 経験を積むためランダムに動き回るらしい。
+				print "Initial exploration before learning starts:", "%d/%d" % (self.total_time_step, config.rl_replay_start_size)
+				self.populating_phase = True
+				self.exploration_rate = config.rl_initial_exploration
+			else:
+				self.populating_phase = False
+				self.dqn.decrease_exploration_rate()
+				self.exploration_rate = self.dqn.exploration_rate
+
+				if self.total_time_step % (config.rl_action_repeat * config.rl_update_frequency) == 0 and self.total_time_step != 0:
+					self.dqn.replay_experience()
+
+				if self.total_time_step % config.rl_target_network_update_frequency == 0 and self.total_time_step != 0:
+					print "Target has been updated."
+					self.dqn.update_target()
+
+	def agent_start(self, observation):
+		print "Episode", self.episode_step, "::", "total_time_step:",
+		if self.total_time_step > 1000:
+			print int(self.total_time_step / 1000), "K"
+		else:
+			print self.total_time_step
+		observed_screen = self.preprocess_screen(observation)
+		self.state[0] = observed_screen
+
+		return_action = Action()
+		action, q_max, q_min = self.dqn.eps_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate)
+		return_action.intArray = [action]
+
+		self.last_action = action
+		self.last_state = self.state.copy()
+
+		return return_action
+
+	def agent_step(self, reward, observation):
+		observed_screen = self.preprocess_screen(observation)
+		self.state = np.asanyarray([self.state[1], self.state[2], self.state[3], observed_screen], dtype=np.float32)
+
+		########################### DEBUG ###############################
+		# if self.total_time_step % 500 == 0 and self.total_time_step != 0:
+		# 	self.dump_state()
+
+		self.learn(reward)
+		
+		return_action = Action()
+		q_max = None
+		q_min = None
+		if self.time_step % config.rl_action_repeat == 0:
+			action, q_max, q_min = self.dqn.eps_greedy(self.reshape_state_to_conv_input(self.state), self.exploration_rate)
+		else:
+			action = self.last_action
+		return_action.intArray = [action]
+
+		self.dump_result(reward, q_max, q_min)
+
+		if self.policy_frozen is False:
+			self.last_action = action
+			self.last_state = self.state.copy()
+			self.time_step += 1
+			self.total_time_step += 1
+
+		return return_action
+
+	def agent_end(self, reward):
+		self.learn(reward, epsode_ends=True)
+
+		# [Optional]
+		## Visualizing the results
+		self.dump_result(reward)
+
+		if self.policy_frozen is False:
+			self.time_step = 0
+			self.total_time_step += 1
+			self.episode_step += 1
+
+	def agent_cleanup(self):
+		pass
+
+	def agent_message(self, inMessage):
+		if inMessage.startswith("freeze_policy"):
+			self.policy_frozen = True
+			self.exploration_rate = self.exploration_rate_for_evaluation
+			return "The policy was freezed."
+
+		if inMessage.startswith("unfreeze_policy"):
+			self.policy_frozen = False
+			self.exploration_rate = self.dqn.exploration_rate
+			return "The policy was unfreezed."
+
+		if inMessage.startswith("save_model"):
+			if self.populating_phase is False:
+				self.dqn.save()
+			return "The model was saved."

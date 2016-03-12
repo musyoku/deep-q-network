@@ -68,7 +68,9 @@ class Agent(RLGlueAgent):
 
 	def dump_result(self, reward, q_max=None, q_min=None):
 		if self.time_step % 50 == 0:
-			print "time_step:", self.time_step,
+			if self.policy_frozen is False:
+				print "time_step:", self.time_step,
+				
 			print "reward:", reward,
 			print "eps:", self.exploration_rate,
 			if q_min is None:
@@ -77,7 +79,6 @@ class Agent(RLGlueAgent):
 				print "Q ::",
 				print "max:", q_max,
 				print "min:", q_min
-
 
 	def dump_state(self, state=None, prefix=""):
 		if state is None:

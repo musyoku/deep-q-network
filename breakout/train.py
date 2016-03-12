@@ -21,6 +21,7 @@ config.q_conv_strides = [4, 2, 1]
 config.q_conv_filter_sizes = [8, 4, 3]
 config.q_conv_output_vector_dimension = 512
 config.q_fc_hidden_units = [256, 128]
+config.q_initial_wscale = 0.1
 
 # Override agent
 class BreakoutAgent(Agent):

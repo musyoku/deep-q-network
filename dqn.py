@@ -303,6 +303,7 @@ class DQN:
 
 def build_q_network(config):
 	config.check()
+	wscale = config.q_initial_wscale
 
 	# Convolutional part of Q-Network
 	conv_attributes = {}
@@ -316,11 +317,11 @@ def build_q_network(config):
 		output_map_height = (output_map_height - config.q_conv_filter_sizes[n]) / config.q_conv_strides[n] + 1
 
 	for i, (n_in, n_out) in enumerate(conv_channels):
-		conv_attributes["layer_%i" % i] = L.Convolution2D(n_in, n_out, config.q_conv_filter_sizes[i], stride=config.q_conv_strides[i])
+		conv_attributes["layer_%i" % i] = L.Convolution2D(n_in, n_out, config.q_conv_filter_sizes[i], stride=config.q_conv_strides[i], wscale=wscale)
 		conv_attributes["batchnorm_%i" % i] = L.BatchNormalization(n_out)
 
 	if config.q_conv_output_projection_type == "fully_connection":
-		conv_attributes["projection_layer"] = L.Linear(output_map_width * output_map_height * config.q_conv_hidden_channels[-1], config.q_conv_output_vector_dimension)
+		conv_attributes["projection_layer"] = L.Linear(output_map_width * output_map_height * config.q_conv_hidden_channels[-1], config.q_conv_output_vector_dimension, wscale=wscale)
 
 	conv = ConvolutionalNetwork(**conv_attributes)
 	conv.n_hidden_layers = len(config.q_conv_hidden_channels)
@@ -340,7 +341,7 @@ def build_q_network(config):
 		fc_units += [(config.q_fc_hidden_units[-1], len(config.ale_actions))]
 
 		for i, (n_in, n_out) in enumerate(fc_units):
-			fc_attributes["layer_%i" % i] = L.Linear(n_in, n_out)
+			fc_attributes["layer_%i" % i] = L.Linear(n_in, n_out, wscale=wscale)
 			fc_attributes["batchnorm_%i" % i] = L.BatchNormalization(n_out)
 
 		fc = FullyConnectedNetwork(**fc_attributes)

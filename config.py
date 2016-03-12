@@ -200,3 +200,6 @@ config.q_fc_apply_dropout = False
 ## 全結合層への入力（つまり畳み込み層の出力）にバッチ正規化を適用するかどうか
 ## config.apply_batchnormの設定によらずこちらが優先されます
 config.q_fc_apply_batchnorm_to_input = False
+
+## Default: 1.0
+config.q_initial_wscale = 1.0
