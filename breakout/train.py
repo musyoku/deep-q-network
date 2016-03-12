@@ -10,7 +10,6 @@ from dqn import DQN
 from agent import Agent
 
 # Override config
-config.apply_batchnorm = False
 config.ale_actions = [4, 3, 1, 0]
 config.ale_screen_size = [210, 160]
 config.ale_scaled_screen_size = [84, 84]
@@ -21,7 +20,6 @@ config.q_conv_strides = [4, 2, 1]
 config.q_conv_filter_sizes = [8, 4, 3]
 config.q_conv_output_vector_dimension = 512
 config.q_fc_hidden_units = [256, 128]
-config.q_initial_wscale = 0.1
 
 # Override agent
 class BreakoutAgent(Agent):

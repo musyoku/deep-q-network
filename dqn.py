@@ -303,7 +303,7 @@ class DQN:
 
 def build_q_network(config):
 	config.check()
-	wscale = config.q_initial_wscale
+	wscale = config.q_wscale
 
 	# Convolutional part of Q-Network
 	conv_attributes = {}

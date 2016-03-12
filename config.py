@@ -202,4 +202,4 @@ config.q_fc_apply_dropout = False
 config.q_fc_apply_batchnorm_to_input = False
 
 ## Default: 1.0
-config.q_initial_wscale = 1.0
+config.q_wscale = 1.0
