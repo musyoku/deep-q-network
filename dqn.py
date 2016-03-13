@@ -202,21 +202,22 @@ class DQN:
 
 			# 現在選択した行動に対してのみ誤差を伝播する。
 			# それ以外の行動を表すユニットの2乗誤差は0となる。（target=qとなるため）
+			old_value = target[i, action_index]
+			diff = target_value - old_value
+
+			# target is a one-hot vector in which the non-zero element(= target signal) corresponds to the taken action.
+			# targetは実際にとった行動に対してのみ誤差を考え、それ以外の行動に対しては誤差が0となるone-hotなベクトルです。
+			
+			# Clip the error to be between -1 and 1.
+			# 1を超えるものはすべて1にする。（-1も同様）
+			if abs(diff) > 1.0:
+				target_value = diff / diff + old_value	
 			target[i, action_index] = target_value
 
-		# Compute error
 		target = Variable(target)
-		loss = target - q
-		loss *= loss
 
-		# loss is a one-hot vector in which the non-zero element(= loss signal) corresponds to the taken action.
-		# lossは実際にとった行動に対してのみ誤差を考え、それ以外の行動に対しては誤差が0となるone-hotなベクトルです。
-
-		# Clip the error to be between -1 and 1.
-		# 1を超えるものはすべて1にする。（-1も同様）
-		loss /= xp.maximum(loss.data, xp.ones(loss.data.shape, dtype=xp.float32))
-
-		loss = F.sum(loss) / n_batch
+		# Compute error
+		loss = F.mean_squared_error(target, q)
 		return loss, q
 
 	def replay_experience(self):

@@ -6,7 +6,6 @@ from rlglue.agent import AgentLoader
 sys.path.append(os.path.split(os.getcwd())[0])
 from PIL import Image
 from config import config
-from dqn import DQN
 from agent import Agent
 
 # Override config
