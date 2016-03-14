@@ -210,8 +210,10 @@ class DQN:
 			
 			# Clip the error to be between -1 and 1.
 			# 1を超えるものはすべて1にする。（-1も同様）
-			if abs(diff) > 1.0:
-				target_value = diff / diff + old_value	
+			if diff > 1.0:
+				target_value = 1.0 + old_value	
+			elif diff < -1.0:
+				target_value = -1.0 + old_value	
 			target[i, action_index] = target_value
 
 		target = Variable(target)
