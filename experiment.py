@@ -5,47 +5,6 @@ import numpy as np
 import seaborn as sns
 import rlglue.RLGlue as RLGlue
 
-max_episode = 10 ** 5
-total_episode = 0
-learned_episode = 0
-learned_steps = 0
-total_time = 0
-time_steps_per_epoch = 5 * 10 ** 4
-highscore = 0
-saving_freq = 100
-
-# evaluation
-num_episode_between_evaluations = 100
-is_evaluation_phase = False
-num_finished_eval_episode = 0
-sum_evaluation_scores = 0
-num_episode_per_evaluation = 20
-evaluation_scores = np.zeros((num_episode_per_evaluation,), dtype=np.float64)
-
-# args
-parser = argparse.ArgumentParser()
-parser.add_argument("--csv_dir", type=str, default="csv")
-parser.add_argument("--plot_dir", type=str, default="plot")
-args = parser.parse_args()
-
-try:
-	os.mkdir(args.plot_dir)
-	os.mkdir(args.csv_dir)
-except:
-	pass
-
-# csv
-csv_writing_freq = 100
-csv_episode = []
-csv_training_highscore = []
-csv_evaluation = []
-
-# plot
-plot_freq = csv_writing_freq
-sns.set_style("ticks")
-sns.set_style("whitegrid", {"grid.linestyle": "--"})
-sns.set_context("poster")
-
 def plot_episode_reward():
 	pylab.clf()
 	sns.set_context("poster")
@@ -100,7 +59,6 @@ def plot_training_episode_highscore():
 	pylab.ylabel("highscore")
 	pylab.savefig("%s/training_episode_highscore.png" % args.plot_dir)
 
-
 def run_episode(training=True):
 	global total_episode, learned_episode, total_time, learned_steps, csv_episode, highscore, num_finished_eval_episode, evaluation_scores
 	start_time = time.time()
@@ -126,13 +84,102 @@ def run_episode(training=True):
 	return num_steps, total_reward
 
 
+max_episode = 10 ** 5
+total_episode = 0
+learned_episode = 0
+learned_steps = 0
+total_time = 0
+time_steps_per_epoch = 5 * 10 ** 4
+highscore = 0
+saving_freq = 100
+
+# evaluation
+num_episode_between_evaluations = 100
+is_evaluation_phase = False
+num_finished_eval_episode = 0
+sum_evaluation_scores = 0
+num_episode_per_evaluation = 20
+evaluation_scores = np.zeros((num_episode_per_evaluation,), dtype=np.float64)
+
+# args
+parser = argparse.ArgumentParser()
+parser.add_argument("--csv_dir", type=str, default="csv")
+parser.add_argument("--plot_dir", type=str, default="plot")
+args = parser.parse_args()
+
+try:
+	os.mkdir(args.plot_dir)
+	os.mkdir(args.csv_dir)
+except:
+	pass
+
+# csv
+csv_writing_freq = 100
+csv_episode = []
+csv_training_highscore = []
+csv_evaluation = []
+
+filename = args.csv_dir + "/episode.csv"
+if os.path.isfile(filename):
+	episodes = pd.read_csv(args.csv_dir + "/episode.csv")
+	print "episode.csv loaded."
+	for i in xrange(episodes.values.shape[0]):
+		value = episodes.values[i]
+		learned_episode = int(value[1])
+		total_reward = value[2]
+		num_steps = int(value[3])
+		sec = int(value[4])
+		total_minutes = int(value[5])
+		epoch = int(value[6])
+		learned_steps = int(value[7])
+		csv_episode.append([learned_episode, total_reward, num_steps, sec, total_minutes, epoch, learned_steps])
+
+filename = args.csv_dir + "/training_highscore.csv"
+if os.path.isfile(filename):
+	training_highscores = pd.read_csv(args.csv_dir + "/training_highscore.csv")
+	print "training_highscore.csv loaded."
+	for i in xrange(training_highscores.values.shape[0]):
+		value = training_highscores.values[i]
+		learned_episode = int(value[1])
+		highscore = int(value[2])
+		total_minutes = int(value[3])
+		epoch = int(value[4])
+		csv_training_highscore.append([learned_episode, highscore, total_minutes, epoch])
+
+	plot_training_episode_highscore()
+
+filename = args.csv_dir + "/evaluation.csv"
+if os.path.isfile(filename):
+	evaluations = pd.read_csv(args.csv_dir + "/evaluation.csv")
+	print "evaluation.csv loaded."
+	for i in xrange(evaluations.values.shape[0]):
+		value = evaluations.values[i]
+		learned_episode = int(value[1])
+		evaluation_scores_mean = value[2]
+		evaluation_scores_median = value[3]
+		total_minutes = int(value[4])
+		epoch = int(value[5])
+		csv_evaluation.append([learned_episode, evaluation_scores_mean, evaluation_scores_median, total_minutes, epoch])
+
+	plot_evaluation_episode_reward()
+
+	# set
+	total_episode = learned_episode
+	total_time = total_minutes * 60
+
+# plot
+plot_freq = csv_writing_freq
+sns.set_style("ticks")
+sns.set_style("whitegrid", {"grid.linestyle": "--"})
+sns.set_context("poster")
+
 RLGlue.RL_init()
 
 while learned_episode < max_episode:
 	epoch = int(learned_steps / time_steps_per_epoch)
 	total_minutes = int(total_time / 60)
 
-	if learned_episode % num_episode_between_evaluations == 0 and total_episode != 0:
+	if learned_episode % num_episode_between_evaluations == 0:
 		if is_evaluation_phase is False:
 			print "Freezing the policy for evaluation."
 			RLGlue.RL_agent_message("freeze_policy")
@@ -149,11 +196,11 @@ while learned_episode < max_episode:
 		else:
 			continue
 
-	if learned_episode % saving_freq == 0 and learned_episode != 0:
+	if learned_episode % saving_freq == 0:
 		print "Saving the model."
 		RLGlue.RL_agent_message("save_model")
 
-	if learned_episode % csv_writing_freq == 0 and learned_episode != 0:
+	if learned_episode % csv_writing_freq == 0:
 		print "Writing to csv files."
 		if len(csv_episode):
 			data = pd.DataFrame(csv_episode)
@@ -170,7 +217,7 @@ while learned_episode < max_episode:
 			data.columns = ["episode", "average", "median", "total_minutes", "epoch"]
 			data.to_csv("%s/evaluation.csv" % args.csv_dir)
 
-	if learned_episode % plot_freq == 0 and learned_episode != 0:
+	if learned_episode % plot_freq == 0:
 		print "Plotting the csv data."
 		plot_episode_reward()
 		plot_training_episode_highscore()

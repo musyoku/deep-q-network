@@ -32,7 +32,10 @@ class ConvolutionalNetwork(chainer.Chain):
 			chain.append(f(u))
 
 		if self.projection_type == "fully_connection":
-			chain.append(self.projection_layer(chain[-1]))
+			u = self.projection_layer(chain[-1])
+			if self.apply_batchnorm:
+				u = self.projection_batchnorm(u)
+			chain.append(f(u))
 
 		elif self.projection_type == "global_average_pooling":
 			batch_size = chain[-1].data.shape[0]
@@ -291,12 +294,12 @@ class DQN:
 		filename = "conv.model"
 		if os.path.isfile(filename):
 			serializers.load_hdf5(filename, self.conv)
-			print "Loaded convolutional network."
+			print "convolutional network loaded."
 		if self.fcl_eliminated is False:
 			filename = "fc.model"
 			if os.path.isfile(filename):
 				serializers.load_hdf5(filename, self.fc)
-				print "Loaded fully-connected network."
+				print "fully-connected network loaded."
 
 	def save(self):
 		serializers.save_hdf5("conv.model", self.conv)
@@ -325,6 +328,7 @@ def build_q_network(config):
 
 	if config.q_conv_output_projection_type == "fully_connection":
 		conv_attributes["projection_layer"] = L.Linear(output_map_width * output_map_height * config.q_conv_hidden_channels[-1], config.q_conv_output_vector_dimension, wscale=wscale)
+		conv_attributes["projection_batchnorm"] = L.BatchNormalization(config.q_conv_output_vector_dimension)
 
 	conv = ConvolutionalNetwork(**conv_attributes)
 	conv.n_hidden_layers = len(config.q_conv_hidden_channels)
