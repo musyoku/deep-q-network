@@ -179,7 +179,7 @@ while learned_episode < max_episode:
 	epoch = int(learned_steps / time_steps_per_epoch)
 	total_minutes = int(total_time / 60)
 
-	if learned_episode % num_episode_between_evaluations == 0:
+	if learned_episode % num_episode_between_evaluations == 0 and total_episode != 0:
 		if is_evaluation_phase is False:
 			print "Freezing the policy for evaluation."
 			RLGlue.RL_agent_message("freeze_policy")
@@ -196,11 +196,11 @@ while learned_episode < max_episode:
 		else:
 			continue
 
-	if learned_episode % saving_freq == 0:
+	if learned_episode % saving_freq == 0 and learned_episode != 0:
 		print "Saving the model."
 		RLGlue.RL_agent_message("save_model")
 
-	if learned_episode % csv_writing_freq == 0:
+	if learned_episode % csv_writing_freq == 0 and learned_episode != 0:
 		print "Writing to csv files."
 		if len(csv_episode):
 			data = pd.DataFrame(csv_episode)
@@ -217,7 +217,7 @@ while learned_episode < max_episode:
 			data.columns = ["episode", "average", "median", "total_minutes", "epoch"]
 			data.to_csv("%s/evaluation.csv" % args.csv_dir)
 
-	if learned_episode % plot_freq == 0:
+	if learned_episode % plot_freq == 0 and learned_episode != 0:
 		print "Plotting the csv data."
 		plot_episode_reward()
 		plot_training_episode_highscore()

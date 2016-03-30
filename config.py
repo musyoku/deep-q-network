@@ -158,7 +158,7 @@ config.q_conv_activation_function = "elu"
 ## This overrides config.apply_batchnorm
 ## 畳み込み層への入力（つまりゲーム画面の画像データ）にバッチ正規化を適用するかどうか
 ## config.apply_batchnormの設定によらずこちらが優先されます
-config.q_conv_apply_batchnorm_to_input = False
+config.q_conv_apply_batchnorm_to_input = True
 
 ## Single fully connected layer is placed on top of the convolutional network to convert output feature maps to vector.
 ## This vector is fed into fully connected layers.

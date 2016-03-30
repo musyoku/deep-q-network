@@ -132,13 +132,14 @@ class Agent(RLGlueAgent):
 		return_action.intArray = [action]
 
 		self.last_action = copy.deepcopy(return_action)
-		self.last_state = self.state.copy()
+		self.last_state = self.state
 
 		return return_action
 
 	def agent_step(self, reward, observation):
 		observed_screen = self.preprocess_screen(observation)
-		self.state = np.asanyarray([self.state[1], self.state[2], self.state[3], observed_screen], dtype=np.float32)
+		self.state = np.roll(self.state, 1, axis=0)
+		self.state[0] = observed_screen
 
 		########################### DEBUG ###############################
 		# if self.total_time_step % 500 == 0 and self.total_time_step != 0:
@@ -159,7 +160,7 @@ class Agent(RLGlueAgent):
 
 		if self.policy_frozen is False:
 			self.last_action = copy.deepcopy(return_action)
-			self.last_state = self.state.copy()
+			self.last_state = self.state
 			self.time_step += 1
 			self.total_time_step += 1
 
